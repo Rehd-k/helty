@@ -25,7 +25,7 @@ enum ReportPdfTemplateId {
 
   String get description => switch (this) {
         ReportPdfTemplateId.classicNavy =>
-          'Navy gradient header with gold accent — current hospital look.',
+          'Colorful clinical report with service taglines, category cards, and bright out-of-range results.',
         ReportPdfTemplateId.cleanClinical =>
           'White letterhead with a thin accent bar and stacked contacts.',
         ReportPdfTemplateId.formalLetterhead =>

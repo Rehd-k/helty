@@ -28,8 +28,7 @@ void showLabOrderItemReviewDialog(
       ),
       hiddenFromReport: result.hiddenFromReport,
     );
-  }).toList()
-    ..sort((a, b) => a.line.position.compareTo(b.line.position));
+  }).toList()..sort((a, b) => a.line.position.compareTo(b.line.position));
 
   showDialog<void>(
     context: context,
@@ -60,9 +59,7 @@ void showLabOrderItemReviewDialog(
         hiddenFlags: lines.map((e) => e.hiddenFromReport).toList(),
         emptyMessage: 'No results yet.',
       ),
-      trailingSection: item.astRequested
-          ? _LabOrderItemAstSection(item: item, theme: theme)
-          : null,
+      trailingSection: _orderItemTrailing(item, theme),
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(ctx).pop(),
@@ -71,6 +68,59 @@ void showLabOrderItemReviewDialog(
       ],
     ),
   );
+}
+
+Widget? _orderItemTrailing(LabOrderItem item, ThemeData theme) {
+  final notes = item.scientistNotes?.trim() ?? '';
+  final children = <Widget>[
+    if (item.astRequested) _LabOrderItemAstSection(item: item, theme: theme),
+    if (notes.isNotEmpty) _ScientistNotesCallout(notes: notes, theme: theme),
+  ];
+  if (children.isEmpty) return null;
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (var i = 0; i < children.length; i++) ...[
+        if (i > 0) const SizedBox(height: 16),
+        children[i],
+      ],
+    ],
+  );
+}
+
+class _ScientistNotesCallout extends StatelessWidget {
+  const _ScientistNotesCallout({required this.notes, required this.theme});
+
+  final String notes;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFCD34D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'SCIENTIST NOTES',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+              color: const Color(0xFFB45309),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(notes, style: theme.textTheme.bodyMedium),
+        ],
+      ),
+    );
+  }
 }
 
 /// Full lab result dialog shared by nurses, doctors, and completed-encounter review.
@@ -84,9 +134,7 @@ void showLabOrderResultsDialog(
   final lines = order.resultLines;
   final hasLegacyMap =
       order.resultValues != null && order.resultValues!.isNotEmpty;
-  final hasResults =
-      (lines != null && lines.isNotEmpty) ||
-      hasLegacyMap;
+  final hasResults = (lines != null && lines.isNotEmpty) || hasLegacyMap;
 
   final metaChips = <_LabMetaChip>[
     _LabMetaChip(
@@ -96,10 +144,7 @@ void showLabOrderResultsDialog(
         DateFormatter.dateTime,
       ),
     ),
-    _LabMetaChip(
-      icon: Icons.flag_outlined,
-      label: order.priority ?? 'Routine',
-    ),
+    _LabMetaChip(icon: Icons.flag_outlined, label: order.priority ?? 'Routine'),
     if (order.clinicalNotes != null && order.clinicalNotes!.isNotEmpty)
       _LabMetaChip(icon: Icons.notes_outlined, label: order.clinicalNotes!),
     if (showEncounterId && order.encounterId.isNotEmpty)
@@ -153,7 +198,10 @@ void showLabOrderResultsDialog(
 
 enum _LabStatusTone { pending, inProgress, success, error, neutral }
 
-_LabStatusTone _labStatusToneFromLabel(String status, {required bool hasResults}) {
+_LabStatusTone _labStatusToneFromLabel(
+  String status, {
+  required bool hasResults,
+}) {
   final s = status.toLowerCase();
   if (s.contains('cancel') || s.contains('reject')) return _LabStatusTone.error;
   if (hasResults ||
@@ -235,7 +283,9 @@ class _LabResultsDialogShell extends StatelessWidget {
               decoration: BoxDecoration(
                 color: cs.surfaceContainerLow,
                 border: Border(
-                  bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+                  bottom: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
                 ),
               ),
               child: Row(
@@ -316,7 +366,10 @@ class _LabResultsDialogShell extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: metaChips
-                            .map((chip) => _MetaChipWidget(chip: chip, theme: theme))
+                            .map(
+                              (chip) =>
+                                  _MetaChipWidget(chip: chip, theme: theme),
+                            )
                             .toList(),
                       ),
                       const SizedBox(height: 18),
@@ -335,7 +388,9 @@ class _LabResultsDialogShell extends StatelessWidget {
               decoration: BoxDecoration(
                 color: cs.surfaceContainerLowest,
                 border: Border(
-                  top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
+                  top: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.45),
+                  ),
                 ),
               ),
               child: Row(
@@ -380,9 +435,7 @@ class _MetaChipWidget extends StatelessWidget {
           Flexible(
             child: Text(
               chip.label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: cs.onSurface,
-              ),
+              style: theme.textTheme.labelMedium?.copyWith(color: cs.onSurface),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -460,7 +513,9 @@ class _LabResultsPanel extends StatelessWidget {
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.35,
+            ),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
@@ -469,7 +524,10 @@ class _LabResultsPanel extends StatelessWidget {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -530,10 +588,7 @@ class _LabResultsPanel extends StatelessWidget {
 }
 
 class _LabLegacyResultsPanel extends StatelessWidget {
-  const _LabLegacyResultsPanel({
-    required this.theme,
-    required this.values,
-  });
+  const _LabLegacyResultsPanel({required this.theme, required this.values});
 
   final ThemeData theme;
   final Map<String, String> values;
@@ -553,7 +608,9 @@ class _LabLegacyResultsPanel extends StatelessWidget {
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.35,
+            ),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
@@ -596,7 +653,9 @@ class _LabLegacyResultsPanel extends StatelessWidget {
                   if (!isLast)
                     Divider(
                       height: 1,
-                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.35,
+                      ),
                     ),
                 ],
               );
@@ -793,10 +852,7 @@ class _LabOrderResultLineRow extends StatelessWidget {
 }
 
 class _LabOrderItemAstSection extends StatelessWidget {
-  const _LabOrderItemAstSection({
-    required this.item,
-    required this.theme,
-  });
+  const _LabOrderItemAstSection({required this.item, required this.theme});
 
   final LabOrderItem item;
   final ThemeData theme;
@@ -817,7 +873,9 @@ class _LabOrderItemAstSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.35,
+        ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
@@ -878,12 +936,12 @@ class _LabOrderItemAstSection extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             ...results.map((r) {
-              final abxName = r.antibiotic.code != null &&
-                      r.antibiotic.code!.isNotEmpty
+              final abxName =
+                  r.antibiotic.code != null && r.antibiotic.code!.isNotEmpty
                   ? '${r.antibiotic.name} (${r.antibiotic.code})'
                   : r.antibiotic.name;
-              final resultLabel = r.resultOption.code != null &&
-                      r.resultOption.code!.isNotEmpty
+              final resultLabel =
+                  r.resultOption.code != null && r.resultOption.code!.isNotEmpty
                   ? '${r.resultOption.label} (${r.resultOption.code})'
                   : r.resultOption.label;
               return Padding(

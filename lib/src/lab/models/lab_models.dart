@@ -23,20 +23,20 @@ class LabCategory {
   final DateTime? createdAt;
 
   factory LabCategory.fromJson(Map<String, dynamic> json) => LabCategory(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        description: json['description'] as String?,
-        createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'] as String)
-            : null,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    description: json['description'] as String?,
+    createdAt: json['createdAt'] != null
+        ? DateTime.tryParse(json['createdAt'] as String)
+        : null,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        if (description != null) 'description': description,
-        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    if (description != null) 'description': description,
+    if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+  };
 }
 
 /// Lab test (e.g. CBC, Urinalysis).
@@ -62,30 +62,29 @@ class LabTest {
   final List<LabTestVersion>? versions;
 
   factory LabTest.fromJson(Map<String, dynamic> json) => LabTest(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        sampleType: json['sampleType'] as String,
-        description: json['description'] as String?,
-        price: (json['price'] as num?)?.toDouble(),
-        isActive: (json['isActive'] as bool?) ?? true,
-        category: json['category'] != null
-            ? LabCategoryRef.fromJson(
-                json['category'] as Map<String, dynamic>)
-            : null,
-        versions: (json['versions'] as List<dynamic>?)
-            ?.map((e) => LabTestVersion.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    sampleType: json['sampleType'] as String,
+    description: json['description'] as String?,
+    price: (json['price'] as num?)?.toDouble(),
+    isActive: (json['isActive'] as bool?) ?? true,
+    category: json['category'] != null
+        ? LabCategoryRef.fromJson(json['category'] as Map<String, dynamic>)
+        : null,
+    versions: (json['versions'] as List<dynamic>?)
+        ?.map((e) => LabTestVersion.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'sampleType': sampleType,
-        if (description != null) 'description': description,
-        if (price != null) 'price': price,
-        'isActive': isActive,
-        if (category != null) 'category': category!.toJson(),
-      };
+    'id': id,
+    'name': name,
+    'sampleType': sampleType,
+    if (description != null) 'description': description,
+    if (price != null) 'price': price,
+    'isActive': isActive,
+    if (category != null) 'category': category!.toJson(),
+  };
 }
 
 class LabCategoryRef {
@@ -93,10 +92,8 @@ class LabCategoryRef {
   final String id;
   final String name;
 
-  factory LabCategoryRef.fromJson(Map<String, dynamic> json) => LabCategoryRef(
-        id: json['id'] as String,
-        name: json['name'] as String,
-      );
+  factory LabCategoryRef.fromJson(Map<String, dynamic> json) =>
+      LabCategoryRef(id: json['id'] as String, name: json['name'] as String);
   Map<String, dynamic> toJson() => {'id': id, 'name': name};
 }
 
@@ -117,20 +114,20 @@ class LabTestVersion {
   final int? fieldCount;
 
   factory LabTestVersion.fromJson(Map<String, dynamic> json) => LabTestVersion(
-        id: json['id'] as String,
-        versionNumber: (json['versionNumber'] as num).toInt(),
-        isActive: (json['isActive'] as bool?) ?? false,
-        test: json['test'] != null
-            ? LabTestRef.fromJson(json['test'] as Map<String, dynamic>)
-            : null,
-        fieldCount: (json['_count'] as Map<String, dynamic>?)?['fields'] as int?,
-      );
+    id: json['id'] as String,
+    versionNumber: (json['versionNumber'] as num).toInt(),
+    isActive: (json['isActive'] as bool?) ?? false,
+    test: json['test'] != null
+        ? LabTestRef.fromJson(json['test'] as Map<String, dynamic>)
+        : null,
+    fieldCount: (json['_count'] as Map<String, dynamic>?)?['fields'] as int?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'versionNumber': versionNumber,
-        'isActive': isActive,
-      };
+    'id': id,
+    'versionNumber': versionNumber,
+    'isActive': isActive,
+  };
 }
 
 class LabTestRef {
@@ -138,10 +135,8 @@ class LabTestRef {
   final String id;
   final String name;
 
-  factory LabTestRef.fromJson(Map<String, dynamic> json) => LabTestRef(
-        id: json['id'] as String,
-        name: json['name'] as String,
-      );
+  factory LabTestRef.fromJson(Map<String, dynamic> json) =>
+      LabTestRef(id: json['id'] as String, name: json['name'] as String);
 }
 
 /// Field type for dynamic result form.
@@ -222,28 +217,28 @@ class LabTestField {
   }
 
   factory LabTestField.fromJson(Map<String, dynamic> json) => LabTestField(
-        id: (json['id'] as String?) ?? '',
-        testVersionId: (json['testVersionId'] as String?) ?? '',
-        label: (json['label'] as String?) ?? '',
-        fieldType: LabFieldType.fromString(json['fieldType'] as String?),
-        unit: json['unit'] as String?,
-        referenceRange: json['referenceRange'] as String?,
-        required: (json['required'] as bool?) ?? false,
-        position: (json['position'] as num?)?.toInt() ?? 0,
-        optionsJson: json['optionsJson'] as String?,
-      );
+    id: (json['id'] as String?) ?? '',
+    testVersionId: (json['testVersionId'] as String?) ?? '',
+    label: (json['label'] as String?) ?? '',
+    fieldType: LabFieldType.fromString(json['fieldType'] as String?),
+    unit: json['unit'] as String?,
+    referenceRange: json['referenceRange'] as String?,
+    required: (json['required'] as bool?) ?? false,
+    position: (json['position'] as num?)?.toInt() ?? 0,
+    optionsJson: json['optionsJson'] as String?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'testVersionId': testVersionId,
-        'label': label,
-        'fieldType': fieldType.name.toUpperCase(),
-        if (unit != null) 'unit': unit,
-        if (referenceRange != null) 'referenceRange': referenceRange,
-        'required': required,
-        'position': position,
-        if (optionsJson != null) 'optionsJson': optionsJson,
-      };
+    'id': id,
+    'testVersionId': testVersionId,
+    'label': label,
+    'fieldType': fieldType.name.toUpperCase(),
+    if (unit != null) 'unit': unit,
+    if (referenceRange != null) 'referenceRange': referenceRange,
+    'required': required,
+    'position': position,
+    if (optionsJson != null) 'optionsJson': optionsJson,
+  };
 }
 
 class LabFieldOption {
@@ -320,51 +315,51 @@ class LabOrder {
       RequestWardRef.labelFrom(ward: ward, wardId: wardId);
 
   factory LabOrder.fromJson(Map<String, dynamic> json) => LabOrder(
-        id: (json['id'] as String?) ?? '',
-        status: LabOrderStatus.fromString(json['status'] as String?),
-        patient: json['patient'] != null
-            ? LabOrderPatient.fromJson(
-                json['patient'] as Map<String, dynamic>)
-            : null,
-        doctor: json['doctor'] != null
-            ? LabOrderStaff.fromJson(json['doctor'] as Map<String, dynamic>)
-            : null,
-        wardId: json['wardId']?.toString(),
-        ward: json['ward'] is Map
-            ? RequestWardRef.fromJson(
-                Map<String, dynamic>.from(json['ward'] as Map),
-              )
-            : null,
-        items: (json['items'] as List<dynamic>?)
-                ?.map((e) => LabOrderItem.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-        createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'] as String)
-            : null,
-      );
+    id: (json['id'] as String?) ?? '',
+    status: LabOrderStatus.fromString(json['status'] as String?),
+    patient: json['patient'] != null
+        ? LabOrderPatient.fromJson(json['patient'] as Map<String, dynamic>)
+        : null,
+    doctor: json['doctor'] != null
+        ? LabOrderStaff.fromJson(json['doctor'] as Map<String, dynamic>)
+        : null,
+    wardId: json['wardId']?.toString(),
+    ward: json['ward'] is Map
+        ? RequestWardRef.fromJson(
+            Map<String, dynamic>.from(json['ward'] as Map),
+          )
+        : null,
+    items:
+        (json['items'] as List<dynamic>?)
+            ?.map((e) => LabOrderItem.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+    createdAt: json['createdAt'] != null
+        ? DateTime.tryParse(json['createdAt'] as String)
+        : null,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'status': status.apiValue,
-        if (patient != null) 'patient': patient!.toJson(),
-        if (doctor != null) 'doctor': doctor!.toJson(),
-        if (wardId != null) 'wardId': wardId,
-        if (ward != null) 'ward': {'id': ward!.id, 'name': ward!.name},
-        'items': items.map((e) => e.toJson()).toList(),
-        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
-      };
+    'id': id,
+    'status': status.apiValue,
+    if (patient != null) 'patient': patient!.toJson(),
+    if (doctor != null) 'doctor': doctor!.toJson(),
+    if (wardId != null) 'wardId': wardId,
+    if (ward != null) 'ward': {'id': ward!.id, 'name': ward!.name},
+    'items': items.map((e) => e.toJson()).toList(),
+    if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+  };
 
   LabOrder copyWith({List<LabOrderItem>? items}) => LabOrder(
-        id: id,
-        status: status,
-        patient: patient,
-        doctor: doctor,
-        wardId: wardId,
-        ward: ward,
-        items: items ?? this.items,
-        createdAt: createdAt,
-      );
+    id: id,
+    status: status,
+    patient: patient,
+    doctor: doctor,
+    wardId: wardId,
+    ward: ward,
+    items: items ?? this.items,
+    createdAt: createdAt,
+  );
 }
 
 class LabOrderPatient {
@@ -395,11 +390,11 @@ class LabOrderPatient {
   final String? phoneNumber;
 
   String get displayName => patientDisplayNameFromJson({
-        'title': title,
-        'firstName': firstName,
-        'otherName': otherName,
-        'surname': surname,
-      });
+    'title': title,
+    'firstName': firstName,
+    'otherName': otherName,
+    'surname': surname,
+  });
 
   String get capitalizedDisplayName {
     final parts = <String>[];
@@ -428,17 +423,17 @@ class LabOrderPatient {
       );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        if (title != null) 'title': title,
-        if (firstName != null) 'firstName': firstName,
-        if (otherName != null) 'otherName': otherName,
-        if (surname != null) 'surname': surname,
-        if (patientId != null) 'patientId': patientId,
-        if (gender != null) 'gender': gender,
-        if (dob != null) 'dob': dob!.toIso8601String(),
-        if (email != null) 'email': email,
-        if (phoneNumber != null) 'phoneNumber': phoneNumber,
-      };
+    'id': id,
+    if (title != null) 'title': title,
+    if (firstName != null) 'firstName': firstName,
+    if (otherName != null) 'otherName': otherName,
+    if (surname != null) 'surname': surname,
+    if (patientId != null) 'patientId': patientId,
+    if (gender != null) 'gender': gender,
+    if (dob != null) 'dob': dob!.toIso8601String(),
+    if (email != null) 'email': email,
+    if (phoneNumber != null) 'phoneNumber': phoneNumber,
+  };
 }
 
 class LabOrderStaff {
@@ -469,19 +464,19 @@ class LabOrderStaff {
   }
 
   factory LabOrderStaff.fromJson(Map<String, dynamic> json) => LabOrderStaff(
-        id: (json['id'] as String?) ?? '',
-        firstName: json['firstName'] as String?,
-        lastName: json['lastName'] as String?,
-        accountType: json['accountType'] != null
-            ? AccountType.fromString(json['accountType'] as String?)
-            : null,
-      );
+    id: (json['id'] as String?) ?? '',
+    firstName: json['firstName'] as String?,
+    lastName: json['lastName'] as String?,
+    accountType: json['accountType'] != null
+        ? AccountType.fromString(json['accountType'] as String?)
+        : null,
+  );
   Map<String, dynamic> toJson() => {
-        'id': id,
-        if (firstName != null) 'firstName': firstName,
-        if (lastName != null) 'lastName': lastName,
-        if (accountType != null) 'accountType': accountType!.apiValue,
-      };
+    'id': id,
+    if (firstName != null) 'firstName': firstName,
+    if (lastName != null) 'lastName': lastName,
+    if (accountType != null) 'accountType': accountType!.apiValue,
+  };
 }
 
 /// Input for a single line when creating a lab order.
@@ -495,9 +490,9 @@ class LabOrderItemInput {
   final bool astRequested;
 
   Map<String, dynamic> toJson() => {
-        'testVersionId': testVersionId,
-        'astRequested': astRequested,
-      };
+    'testVersionId': testVersionId,
+    'astRequested': astRequested,
+  };
 }
 
 /// Single line item in an order (one test).
@@ -511,6 +506,7 @@ class LabOrderItem {
     this.fields,
     this.astRequested = false,
     this.astResults = const [],
+    this.scientistNotes,
   });
 
   final String id;
@@ -522,41 +518,50 @@ class LabOrderItem {
   final bool astRequested;
   final List<LabAstResult> astResults;
 
+  /// Scientist comments for this test. Blank notes are omitted from the printed report.
+  final String? scientistNotes;
+
   factory LabOrderItem.fromJson(Map<String, dynamic> json) => LabOrderItem(
-        id: (json['id'] as String?) ?? '',
-        orderId: (json['orderId'] as String?) ?? '',
-        testVersion: json['testVersion'] != null
-            ? LabOrderItemTestVersion.fromJson(
-                json['testVersion'] as Map<String, dynamic>)
-            : null,
-        sample: json['sample'] != null
-            ? LabSample.fromJson(json['sample'] as Map<String, dynamic>)
-            : null,
-        results: (json['results'] as List<dynamic>?)
-                ?.map((e) => LabResult.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-        fields: (json['testVersion']?['fields'] as List<dynamic>?)
-                ?.map((e) => LabTestField.fromJson(e as Map<String, dynamic>))
-                .toList(),
-        astRequested: (json['astRequested'] as bool?) ?? false,
-        astResults: (json['astResults'] as List<dynamic>?)
-                ?.map((e) => LabAstResult.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-      );
+    id: (json['id'] as String?) ?? '',
+    orderId: (json['orderId'] as String?) ?? '',
+    testVersion: json['testVersion'] != null
+        ? LabOrderItemTestVersion.fromJson(
+            json['testVersion'] as Map<String, dynamic>,
+          )
+        : null,
+    sample: json['sample'] != null
+        ? LabSample.fromJson(json['sample'] as Map<String, dynamic>)
+        : null,
+    results:
+        (json['results'] as List<dynamic>?)
+            ?.map((e) => LabResult.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+    fields: (json['testVersion']?['fields'] as List<dynamic>?)
+        ?.map((e) => LabTestField.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    astRequested: (json['astRequested'] as bool?) ?? false,
+    scientistNotes: json['scientistNotes'] as String?,
+    astResults:
+        (json['astResults'] as List<dynamic>?)
+            ?.map((e) => LabAstResult.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'orderId': orderId,
-        if (testVersion != null) 'testVersion': testVersion!.toJson(),
-        if (sample != null) 'sample': sample!.toJson(),
-        'results': results.map((e) => e.toJson()).toList(),
-        'astRequested': astRequested,
-        'astResults': astResults.map((e) => e.toJson()).toList(),
-      };
+    'id': id,
+    'orderId': orderId,
+    if (testVersion != null) 'testVersion': testVersion!.toJson(),
+    if (sample != null) 'sample': sample!.toJson(),
+    'results': results.map((e) => e.toJson()).toList(),
+    'astRequested': astRequested,
+    'astResults': astResults.map((e) => e.toJson()).toList(),
+    if (scientistNotes != null) 'scientistNotes': scientistNotes,
+  };
 
-  LabOrderItem copyWith({List<LabResult>? results}) => LabOrderItem(
+  LabOrderItem copyWith({List<LabResult>? results, String? scientistNotes}) =>
+      LabOrderItem(
         id: id,
         orderId: orderId,
         testVersion: testVersion,
@@ -565,15 +570,12 @@ class LabOrderItem {
         fields: fields,
         astRequested: astRequested,
         astResults: astResults,
+        scientistNotes: scientistNotes ?? this.scientistNotes,
       );
 }
 
 class LabOrderItemTestVersion {
-  const LabOrderItemTestVersion({
-    required this.id,
-    this.test,
-    this.fields,
-  });
+  const LabOrderItemTestVersion({required this.id, this.test, this.fields});
 
   final String id;
   final LabOrderItemTest? test;
@@ -593,15 +595,18 @@ class LabOrderItemTestVersion {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        if (test != null) 'test': test!.toJson(),
-        if (fields != null) 'fields': fields!.map((e) => e.toJson()).toList(),
-      };
+    'id': id,
+    if (test != null) 'test': test!.toJson(),
+    if (fields != null) 'fields': fields!.map((e) => e.toJson()).toList(),
+  };
 }
 
 class LabOrderItemTest {
-  const LabOrderItemTest(
-      {required this.id, required this.name, this.sampleType});
+  const LabOrderItemTest({
+    required this.id,
+    required this.name,
+    this.sampleType,
+  });
   final String id;
   final String name;
   final String? sampleType;
@@ -612,8 +617,11 @@ class LabOrderItemTest {
         name: (json['name'] as String?) ?? '',
         sampleType: json['sampleType'] as String?,
       );
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'name': name, 'sampleType': sampleType};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'sampleType': sampleType,
+  };
 }
 
 /// Sample recorded for an order item.
@@ -630,6 +638,7 @@ class LabSample {
   final String id;
   final String orderItemId;
   final String sampleType;
+
   /// Staff user id who collected the sample (API may return this id as a string
   /// or nested under `collectedBy: { id, firstName, lastName }`).
   final String collectedBy;
@@ -660,13 +669,13 @@ class LabSample {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'orderItemId': orderItemId,
-        'sampleType': sampleType,
-        'collectedBy': collectedBy,
-        'collectionTime': collectionTime.toIso8601String(),
-        if (barcode != null) 'barcode': barcode,
-      };
+    'id': id,
+    'orderItemId': orderItemId,
+    'sampleType': sampleType,
+    'collectedBy': collectedBy,
+    'collectionTime': collectionTime.toIso8601String(),
+    if (barcode != null) 'barcode': barcode,
+  };
 }
 
 /// Direction when a numeric result is outside the reference range.
@@ -712,12 +721,11 @@ class ReferenceEvaluation {
       );
 
   Map<String, dynamic> toJson() => {
-        if (inRange != null) 'inRange': inRange,
-        if (flag != null)
-          'flag': flag == ReferenceFlag.low ? 'LOW' : 'HIGH',
-        if (parsedValue != null) 'parsedValue': parsedValue,
-        if (referenceRange != null) 'referenceRange': referenceRange,
-      };
+    if (inRange != null) 'inRange': inRange,
+    if (flag != null) 'flag': flag == ReferenceFlag.low ? 'LOW' : 'HIGH',
+    if (parsedValue != null) 'parsedValue': parsedValue,
+    if (referenceRange != null) 'referenceRange': referenceRange,
+  };
 }
 
 /// Single result value for a field.
@@ -738,6 +746,7 @@ class LabResult {
   final String fieldId;
   final String value;
   final LabTestField? field;
+
   /// Staff id who entered the result (API may send [enteredById] only or nested [enteredBy]).
   final String? enteredBy;
 
@@ -774,47 +783,47 @@ class LabResult {
   }
 
   factory LabResult.fromJson(Map<String, dynamic> json) => LabResult(
-        id: (json['id'] as String?) ?? '',
-        orderItemId: (json['orderItemId'] as String?) ?? '',
-        fieldId: (json['fieldId'] as String?) ?? '',
-        value: _valueToString(json['value']),
-        field: json['field'] != null
-            ? LabTestField.fromJson(json['field'] as Map<String, dynamic>)
-            : null,
-        enteredBy: _enteredByStaffIdFromJson(json),
-        hiddenFromReport: (json['hiddenFromReport'] as bool?) ??
-            (json['excludeFromPrint'] as bool?) ??
-            false,
-        referenceEvaluation: json['referenceEvaluation'] != null
-            ? ReferenceEvaluation.fromJson(
-                json['referenceEvaluation'] as Map<String, dynamic>,
-              )
-            : null,
-      );
+    id: (json['id'] as String?) ?? '',
+    orderItemId: (json['orderItemId'] as String?) ?? '',
+    fieldId: (json['fieldId'] as String?) ?? '',
+    value: _valueToString(json['value']),
+    field: json['field'] != null
+        ? LabTestField.fromJson(json['field'] as Map<String, dynamic>)
+        : null,
+    enteredBy: _enteredByStaffIdFromJson(json),
+    hiddenFromReport:
+        (json['hiddenFromReport'] as bool?) ??
+        (json['excludeFromPrint'] as bool?) ??
+        false,
+    referenceEvaluation: json['referenceEvaluation'] != null
+        ? ReferenceEvaluation.fromJson(
+            json['referenceEvaluation'] as Map<String, dynamic>,
+          )
+        : null,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'orderItemId': orderItemId,
-        'fieldId': fieldId,
-        'value': value,
-        if (field != null) 'field': field!.toJson(),
-        if (enteredBy != null) 'enteredBy': enteredBy,
-        'hiddenFromReport': hiddenFromReport,
-        if (referenceEvaluation != null)
-          'referenceEvaluation': referenceEvaluation!.toJson(),
-      };
+    'id': id,
+    'orderItemId': orderItemId,
+    'fieldId': fieldId,
+    'value': value,
+    if (field != null) 'field': field!.toJson(),
+    if (enteredBy != null) 'enteredBy': enteredBy,
+    'hiddenFromReport': hiddenFromReport,
+    if (referenceEvaluation != null)
+      'referenceEvaluation': referenceEvaluation!.toJson(),
+  };
 
-  LabResult copyWith({ReferenceEvaluation? referenceEvaluation}) =>
-      LabResult(
-        id: id,
-        orderItemId: orderItemId,
-        fieldId: fieldId,
-        value: value,
-        field: field,
-        enteredBy: enteredBy,
-        hiddenFromReport: hiddenFromReport,
-        referenceEvaluation: referenceEvaluation ?? this.referenceEvaluation,
-      );
+  LabResult copyWith({ReferenceEvaluation? referenceEvaluation}) => LabResult(
+    id: id,
+    orderItemId: orderItemId,
+    fieldId: fieldId,
+    value: value,
+    field: field,
+    enteredBy: enteredBy,
+    hiddenFromReport: hiddenFromReport,
+    referenceEvaluation: referenceEvaluation ?? this.referenceEvaluation,
+  );
 }
 
 // ── MCS / AST (antibiotic susceptibility) ───────────────────────────────────
@@ -836,20 +845,20 @@ class LabAntibiotic {
   final int position;
 
   factory LabAntibiotic.fromJson(Map<String, dynamic> json) => LabAntibiotic(
-        id: (json['id'] as String?) ?? '',
-        name: (json['name'] as String?) ?? '',
-        code: json['code'] as String?,
-        isActive: (json['isActive'] as bool?) ?? true,
-        position: (json['position'] as num?)?.toInt() ?? 0,
-      );
+    id: (json['id'] as String?) ?? '',
+    name: (json['name'] as String?) ?? '',
+    code: json['code'] as String?,
+    isActive: (json['isActive'] as bool?) ?? true,
+    position: (json['position'] as num?)?.toInt() ?? 0,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        if (code != null) 'code': code,
-        'isActive': isActive,
-        'position': position,
-      };
+    'id': id,
+    'name': name,
+    if (code != null) 'code': code,
+    'isActive': isActive,
+    'position': position,
+  };
 }
 
 /// Susceptibility result option (e.g. Sensitive, Resistant).
@@ -878,12 +887,12 @@ class LabAstResultOption {
       );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'label': label,
-        if (code != null) 'code': code,
-        'isActive': isActive,
-        'position': position,
-      };
+    'id': id,
+    'label': label,
+    if (code != null) 'code': code,
+    'isActive': isActive,
+    'position': position,
+  };
 }
 
 /// Single AST result row for an order item.
@@ -903,26 +912,24 @@ class LabAstResult {
   final LabOrderStaff? enteredBy;
 
   factory LabAstResult.fromJson(Map<String, dynamic> json) => LabAstResult(
-        id: (json['id'] as String?) ?? '',
-        orderItemId: (json['orderItemId'] as String?) ?? '',
-        antibiotic: LabAntibiotic.fromJson(
-          json['antibiotic'] as Map<String, dynamic>,
-        ),
-        resultOption: LabAstResultOption.fromJson(
-          json['resultOption'] as Map<String, dynamic>,
-        ),
-        enteredBy: json['enteredBy'] != null
-            ? LabOrderStaff.fromJson(
-                json['enteredBy'] as Map<String, dynamic>,
-              )
-            : null,
-      );
+    id: (json['id'] as String?) ?? '',
+    orderItemId: (json['orderItemId'] as String?) ?? '',
+    antibiotic: LabAntibiotic.fromJson(
+      json['antibiotic'] as Map<String, dynamic>,
+    ),
+    resultOption: LabAstResultOption.fromJson(
+      json['resultOption'] as Map<String, dynamic>,
+    ),
+    enteredBy: json['enteredBy'] != null
+        ? LabOrderStaff.fromJson(json['enteredBy'] as Map<String, dynamic>)
+        : null,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'orderItemId': orderItemId,
-        'antibiotic': antibiotic.toJson(),
-        'resultOption': resultOption.toJson(),
-        if (enteredBy != null) 'enteredBy': enteredBy!.toJson(),
-      };
+    'id': id,
+    'orderItemId': orderItemId,
+    'antibiotic': antibiotic.toJson(),
+    'resultOption': resultOption.toJson(),
+    if (enteredBy != null) 'enteredBy': enteredBy!.toJson(),
+  };
 }

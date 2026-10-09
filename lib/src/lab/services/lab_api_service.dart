@@ -332,6 +332,16 @@ class LabApiService {
     );
   }
 
+  Future<void> updateOrderItemNotes({
+    required String orderItemId,
+    required String scientistNotes,
+  }) async {
+    await _dio.patch(
+      '$_prefix/orders/items/$orderItemId',
+      data: {'scientistNotes': scientistNotes},
+    );
+  }
+
   Future<LabOrder> updateOrderStatus(String id, LabOrderStatus status) async {
     final response = await _dio.patch<Map<String, dynamic>>(
       '$_prefix/orders/$id',

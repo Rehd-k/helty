@@ -25,7 +25,8 @@ class LabResultEntryScreen extends ConsumerStatefulWidget {
       _LabResultEntryScreenState();
 }
 
-class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
+class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen>
+    with SingleTickerProviderStateMixin {
   final GlobalKey<LabDynamicResultFormState> _formKey =
       GlobalKey<LabDynamicResultFormState>();
   List<LabTestField>? _fields;
@@ -45,21 +46,68 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
   List<LabAntibiotic> _antibiotics = [];
   List<LabAstResultOption> _astResultOptions = [];
   Map<String, String> _astSelections = {};
+  final TextEditingController _notesController = TextEditingController();
+  late final AnimationController _aiPulse;
 
   @override
   void initState() {
     super.initState();
+    _aiPulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _aiPulse.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  void _showAiPlanLock() {
+    final theme = Theme.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          icon: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF7C3AED)],
+              ),
+            ),
+            child: const Icon(Icons.lock_rounded, color: Colors.white),
+          ),
+          title: const Text('Create with AI'),
+          content: Text(
+            'This feature is not available on your payment plan.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _load() async {
     final api = ref.read(labApiServiceProvider);
     try {
-      final order =
-          await ref.read(labOrderByIdProvider(widget.orderId).future);
+      final order = await ref.read(labOrderByIdProvider(widget.orderId).future);
       _order = order;
-      final matching =
-          order.items.where((e) => e.id == widget.orderItemId).toList();
+      final matching = order.items
+          .where((e) => e.id == widget.orderItemId)
+          .toList();
       final item = matching.isEmpty ? null : matching.first;
       if (item == null) {
         setState(() {
@@ -71,6 +119,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       _testVersionId = item.testVersion?.id;
       _testName = item.testVersion?.test?.name;
       _astRequested = item.astRequested;
+      _notesController.text = item.scientistNotes?.trim() ?? '';
       if (_testVersionId == null ||
           _testVersionId!.isEmpty ||
           item.id.isEmpty) {
@@ -91,8 +140,9 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       final optionsFuture = _astRequested
           ? ref.read(labAstResultOptionsFutureProvider.future)
           : null;
-      final astResultsFuture =
-          _astRequested ? api.getAstResults(item.id) : null;
+      final astResultsFuture = _astRequested
+          ? api.getAstResults(item.id)
+          : null;
 
       final fields = await fieldsFuture;
       final results = await resultsFuture;
@@ -173,8 +223,11 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline_rounded,
-                    size: 48, color: theme.colorScheme.error),
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: theme.colorScheme.error,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   _error ?? 'Unknown error',
@@ -233,111 +286,162 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
         expand: false,
         builder: (context, bp) => SingleChildScrollView(
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_hasExistingResults && hasFields) ...[
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: BorderSide(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.4),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_hasExistingResults && hasFields) ...[
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Existing results were loaded for this test. '
+                            'Updating and saving will overwrite the stored values.',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
+                const SizedBox(height: 16),
+              ],
+              if (hasFields)
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.6,
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: LabDynamicResultForm(
+                      key: _formKey,
+                      fields: _fields!,
+                      initialValues: _initialValues,
+                      fieldEvaluations: _fieldEvaluations,
+                      hiddenFieldIds: _hiddenFieldIds,
+                      onFieldHidden: (fieldId) {
+                        setState(() => _hiddenFieldIds.add(fieldId));
+                      },
+                      onChanged: (_) {},
+                    ),
+                  ),
+                ),
+              if (hasFields && _hiddenFieldIds.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Hidden for this result (not printed)',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _hiddenFieldIds.map((id) {
+                    String label = id;
+                    for (final e in _fields!) {
+                      if (e.id == id) {
+                        label = e.label;
+                        break;
+                      }
+                    }
+                    return ActionChip(
+                      avatar: Icon(
+                        Icons.add_rounded,
+                        size: 18,
                         color: theme.colorScheme.primary,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Existing results were loaded for this test. '
-                          'Updating and saving will overwrite the stored values.',
-                          style: theme.textTheme.bodySmall,
-                        ),
+                      label: Text('Show $label'),
+                      onPressed: () {
+                        setState(() => _hiddenFieldIds.remove(id));
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+              if (_astRequested) ...[
+                if (hasFields) const SizedBox(height: 24),
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.6,
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            if (hasFields)
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color:
-                        theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: LabDynamicResultForm(
-                    key: _formKey,
-                    fields: _fields!,
-                    initialValues: _initialValues,
-                    fieldEvaluations: _fieldEvaluations,
-                    hiddenFieldIds: _hiddenFieldIds,
-                    onFieldHidden: (fieldId) {
-                      setState(() => _hiddenFieldIds.add(fieldId));
-                    },
-                    onChanged: (_) {},
-                  ),
-                ),
-              ),
-            if (hasFields && _hiddenFieldIds.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Hidden for this result (not printed)',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _hiddenFieldIds.map((id) {
-                  String label = id;
-                  for (final e in _fields!) {
-                    if (e.id == id) {
-                      label = e.label;
-                      break;
-                    }
-                  }
-                  return ActionChip(
-                    avatar: Icon(
-                      Icons.add_rounded,
-                      size: 18,
-                      color: theme.colorScheme.primary,
                     ),
-                    label: Text('Show $label'),
-                    onPressed: () {
-                      setState(() => _hiddenFieldIds.remove(id));
-                    },
-                  );
-                }).toList(),
-              ),
-            ],
-            if (_astRequested) ...[
-              if (hasFields) const SizedBox(height: 24),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Antibiotic Susceptibility',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Select susceptibility only for antibiotics that were tested.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        LabAstResultGrid(
+                          antibiotics: _antibiotics,
+                          resultOptions: _astResultOptions,
+                          selections: _astSelections,
+                          onChanged: (antibioticId, resultOptionId) {
+                            setState(() {
+                              if (resultOptionId == null) {
+                                _astSelections.remove(antibioticId);
+                              } else {
+                                _astSelections[antibioticId] = resultOptionId;
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(
-                    color:
-                        theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.6,
+                    ),
                   ),
                 ),
                 child: Padding(
@@ -345,80 +449,96 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Antibiotic Susceptibility',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        alignment: WrapAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Scientist notes',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          _CreateWithAiButton(
+                            pulse: _aiPulse,
+                            onPressed: _showAiPlanLock,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Select susceptibility only for antibiotics that were tested.',
+                        'Printed at the bottom of this test. Leave blank to omit it from the report.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      LabAstResultGrid(
-                        antibiotics: _antibiotics,
-                        resultOptions: _astResultOptions,
-                        selections: _astSelections,
-                        onChanged: (antibioticId, resultOptionId) {
-                          setState(() {
-                            if (resultOptionId == null) {
-                              _astSelections.remove(antibioticId);
-                            } else {
-                              _astSelections[antibioticId] = resultOptionId;
-                            }
-                          });
-                        },
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _notesController,
+                        minLines: 3,
+                        maxLines: 6,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(
+                          hintText: 'Add a comment for this test',
+                          alignLabelWithHint: true,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ],
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
                 ),
+              ],
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _saving || _sending
+                    ? null
+                    : _offerSendToPatient
+                    ? () => _sendSavedResults(context)
+                    : staff == null
+                    ? null
+                    : () => _submit(context),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _saving || _sending
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        _offerSendToPatient
+                            ? 'Send to patient'
+                            : 'Save results',
+                      ),
               ),
             ],
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving || _sending
-                  ? null
-                  : _offerSendToPatient
-                      ? () => _sendSavedResults(context)
-                      : staff == null
-                          ? null
-                          : () => _submit(context),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: _saving || _sending
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _offerSendToPatient
-                          ? 'Send to patient'
-                          : 'Save results',
-                    ),
-            ),
-          ],
+          ),
         ),
       ),
-      ),
     );
+  }
+
+  Future<void> _persistNotes() {
+    return ref
+        .read(labApiServiceProvider)
+        .updateOrderItemNotes(
+          orderItemId: widget.orderItemId,
+          scientistNotes: _notesController.text,
+        );
   }
 
   Future<void> _submit(BuildContext context) async {
@@ -462,12 +582,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       if (_astRequested) {
         final astRows = _astSelections.entries
             .where((e) => e.value.isNotEmpty)
-            .map(
-              (e) => {
-                'antibioticId': e.key,
-                'resultOptionId': e.value,
-              },
-            )
+            .map((e) => {'antibioticId': e.key, 'resultOptionId': e.value})
             .toList();
         if (astRows.isNotEmpty) {
           await api.createAstResultsBatch(
@@ -478,13 +593,14 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
         }
       }
 
+      await _persistNotes();
+
       if (!mounted) return;
       invalidateLabOrderCaches(ref, orderId: widget.orderId);
       ref.invalidate(labOrdersFutureProvider);
       LabOrder? refreshed;
       try {
-        refreshed =
-            await ref.read(labOrderByIdProvider(widget.orderId).future);
+        refreshed = await ref.read(labOrderByIdProvider(widget.orderId).future);
       } catch (_) {}
       if (!mounted) return;
       setState(() {
@@ -514,8 +630,9 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       );
       return;
     }
-    final matches =
-        order.items.where((item) => item.id == widget.orderItemId).toList();
+    final matches = order.items
+        .where((item) => item.id == widget.orderItemId)
+        .toList();
     if (matches.isEmpty) {
       messenger?.showSnackBar(
         const SnackBar(content: Text('Order item not found.')),
@@ -534,10 +651,27 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       _sending = true;
     });
     try {
+      await _persistNotes();
+      LabOrder orderForSend = order;
+      try {
+        final refreshed = await ref.read(
+          labOrderByIdProvider(widget.orderId).future,
+        );
+        orderForSend = refreshed;
+        if (mounted) setState(() => _order = refreshed);
+      } catch (_) {}
+      final sendMatches = orderForSend.items
+          .where((item) => item.id == widget.orderItemId)
+          .toList();
       await sendLabResultsToPatient(
         api: ref.read(labApiServiceProvider),
         patient: patient,
-        entries: [(order: order, item: matches.first)],
+        entries: [
+          (
+            order: orderForSend,
+            item: sendMatches.isEmpty ? matches.first : sendMatches.first,
+          ),
+        ],
         sendEmail: choice.sendEmail,
         sendSms: choice.sendSms,
       );
@@ -552,11 +686,86 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = labSendErrorText(e));
-      messenger?.showSnackBar(
-        SnackBar(content: Text(labSendErrorText(e))),
-      );
+      messenger?.showSnackBar(SnackBar(content: Text(labSendErrorText(e))));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+}
+
+class _CreateWithAiButton extends StatelessWidget {
+  const _CreateWithAiButton({required this.pulse, required this.onPressed});
+
+  final Animation<double> pulse;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: pulse,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(pulse.value);
+        return Transform.scale(
+          scale: 1 + (0.045 * t),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: LinearGradient(
+                colors: [
+                  Color.lerp(
+                    const Color(0xFF4F46E5),
+                    const Color(0xFF7C3AED),
+                    t,
+                  )!,
+                  Color.lerp(
+                    const Color(0xFF6366F1),
+                    const Color(0xFF2563EB),
+                    t,
+                  )!,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(
+                    0xFF7C3AED,
+                  ).withValues(alpha: 0.28 + (0.38 * t)),
+                  blurRadius: 10 + (14 * t),
+                  spreadRadius: 0.4 * t,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        );
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'Create with AI',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                SizedBox(width: 6),
+                Icon(Icons.lock_rounded, color: Colors.white, size: 15),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
