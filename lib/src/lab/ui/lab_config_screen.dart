@@ -1,9 +1,20 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
+import 'package:helty/src/lab/services/lab_api_service.dart';
+import 'package:helty/src/lab/ui/config/lab_config_detail.dart';
+import 'package:helty/src/lab/ui/config/lab_config_forms.dart';
+import 'package:helty/src/lab/ui/config/lab_config_lookup.dart';
+import 'package:helty/src/lab/ui/config/lab_config_shared.dart';
+import 'package:helty/src/lab/ui/config/lab_config_tree.dart';
+import 'package:helty/src/lab/ui/widgets/lab_clinical_ui.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
+
+const _uncategorizedId = '_uncategorized';
 
 @RoutePage()
 class LabConfigScreen extends ConsumerStatefulWidget {
@@ -13,2052 +24,1208 @@ class LabConfigScreen extends ConsumerStatefulWidget {
   ConsumerState<LabConfigScreen> createState() => _LabConfigScreenState();
 }
 
-class _LabConfigScreenState extends ConsumerState<LabConfigScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _LabConfigScreenState extends ConsumerState<LabConfigScreen> {
+  final _searchController = TextEditingController();
+
+  LabConfigSection _section = LabConfigSection.catalog;
+  String _query = '';
+  String? _categoryFilterId;
+  bool _activeOnly = false;
+
+  bool _loading = true;
+  bool _refreshing = false;
+  String? _loadError;
+  List<LabCategory> _categories = const [];
+  List<LabTest> _tests = const [];
+  List<LabAntibiotic> _antibiotics = const [];
+  List<LabAstResultOption> _astOptions = const [];
+
+  String? _selectedCategoryId;
+  String? _selectedTestId;
+  String? _selectedVersionId;
+  bool _showDetail = false;
+  final _expandedIds = <String>{};
+  bool _appliedInitialExpand = false;
+
+  final _versionsByTest = <String, List<LabTestVersion>>{};
+  final _fieldsByVersion = <String, List<LabTestField>>{};
+  bool _loadingVersions = false;
+  bool _loadingFields = false;
+  String? _detailError;
+  int _detailToken = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _searchController.addListener(() {
+      final next = _searchController.text.trim();
+      if (next == _query) return;
+      setState(() => _query = next);
+    });
+    _reload();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Lab configuration'),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: const [
-            Tab(text: 'Categories', icon: Icon(Icons.category_rounded)),
-            Tab(text: 'Tests', icon: Icon(Icons.science_rounded)),
-            Tab(text: 'Versions', icon: Icon(Icons.history_rounded)),
-            Tab(text: 'Fields', icon: Icon(Icons.list_alt_rounded)),
-            Tab(text: 'Antibiotics', icon: Icon(Icons.medication_rounded)),
-            Tab(text: 'AST options', icon: Icon(Icons.grid_view_rounded)),
-          ],
-        ),
-      ),
-      body: ResponsiveBody(
-        builder: (context, bp) => TabBarView(
-        controller: _tabController,
-        children: [
-          _CategoriesTab(),
-          _TestsTab(),
-          _VersionsTab(),
-          _FieldsTab(),
-          _AntibioticsTab(),
-          _AstResultOptionsTab(),
-        ],
-      ),
-      ),
-    );
-  }
-}
+  LabApiService get _api => ref.read(labApiServiceProvider);
 
-class _CategoriesTab extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncCategories = ref.watch(labCategoriesFutureProvider);
-    return asyncCategories.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(err.toString(), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => ref.invalidate(labCategoriesFutureProvider),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      data: (response) {
-        final list = response.data;
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: list.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: ElevatedButton.icon(
-                  onPressed: () => _showCreateCategory(context, ref),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add category'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              );
-            }
-            final cat = list[index - 1];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer,
-                  child: Icon(
-                    Icons.category_rounded,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                title: Text(cat.name),
-                subtitle: cat.description != null
-                    ? Text(cat.description!)
-                    : null,
-                trailing: PopupMenuButton<String>(
-                  onSelected: (action) {
-                    if (action == 'edit') {
-                      _showEditCategory(context, ref, cat);
-                    } else if (action == 'delete') {
-                      _confirmDeleteCategory(context, ref, cat);
-                    }
-                  },
-                  itemBuilder: (ctx) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showCreateCategory(BuildContext context, WidgetRef ref) {
-    final nameController = TextEditingController();
-    final descController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New category'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'e.g. Hematology',
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              if (name.isEmpty) return;
-              try {
-                await ref
-                    .read(labApiServiceProvider)
-                    .createCategory(
-                      name: name,
-                      description: descController.text.trim().isEmpty
-                          ? null
-                          : descController.text.trim(),
-                    );
-                if (ctx.mounted) Navigator.pop(ctx);
-                ref.invalidate(labCategoriesFutureProvider);
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(
-                    ctx,
-                  ).showSnackBar(SnackBar(content: Text(e.toString())));
-                }
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditCategory(
-    BuildContext context,
-    WidgetRef ref,
-    LabCategory cat,
-  ) {
-    final nameController = TextEditingController(text: cat.name);
-    final descController = TextEditingController(text: cat.description ?? '');
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit category'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              if (name.isEmpty) return;
-              try {
-                await ref.read(labApiServiceProvider).updateCategory(
-                      cat.id,
-                      name: name,
-                      description: descController.text.trim().isEmpty
-                          ? null
-                          : descController.text.trim(),
-                    );
-                if (ctx.mounted) Navigator.pop(ctx);
-                ref.invalidate(labCategoriesFutureProvider);
-                ref.invalidate(labTestsFutureProvider);
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDeleteCategory(
-    BuildContext context,
-    WidgetRef ref,
-    LabCategory cat,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete category'),
-        content: Text(
-          'Delete "${cat.name}"? Tests in this category may be affected.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            onPressed: () async {
-              try {
-                await ref.read(labApiServiceProvider).deleteCategory(cat.id);
-                if (ctx.mounted) Navigator.pop(ctx);
-                ref.invalidate(labCategoriesFutureProvider);
-                ref.invalidate(labTestsFutureProvider);
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
-                }
-              }
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TestsTab extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncTests = ref.watch(labTestsFutureProvider);
-    return asyncTests.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(err.toString(), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => ref.invalidate(labTestsFutureProvider),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      data: (response) {
-        final list = response.data;
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: list.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: ElevatedButton.icon(
-                  onPressed: () => _showCreateTest(context, ref),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add test'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              );
-            }
-            final test = list[index - 1];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.tertiaryContainer,
-                  child: Icon(
-                    Icons.science_rounded,
-                    color: Theme.of(context).colorScheme.onTertiaryContainer,
-                  ),
-                ),
-                title: Text(test.name),
-                subtitle: Text(
-                  '${test.category?.name ?? "—"} · ${test.sampleType}',
-                ),
-                trailing: PopupMenuButton<String>(
-                  onSelected: (action) {
-                    if (action == 'edit') {
-                      _showEditTest(context, ref, test);
-                    } else if (action == 'delete') {
-                      _confirmDeleteTest(context, ref, test);
-                    }
-                  },
-                  itemBuilder: (ctx) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showCreateTest(BuildContext context, WidgetRef ref) async {
-    final api = ref.read(labApiServiceProvider);
-    final cats = await api.getCategories(take: 500);
-    if (!context.mounted) return;
-    final nameController = TextEditingController();
-    final sampleController = TextEditingController();
-    LabCategory? selectedCategory;
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('New test'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<LabCategory>(
-                  initialValue: selectedCategory,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: cats.data
-                      .map(
-                        (c) => DropdownMenuItem(value: c, child: Text(c.name)),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => selectedCategory = v),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Test name',
-                    hintText: 'e.g. CBC',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: sampleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Sample type',
-                    hintText: 'e.g. Blood',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                final sample = sampleController.text.trim();
-                if (name.isEmpty ||
-                    sample.isEmpty ||
-                    selectedCategory == null) {
-                  return;
-                }
-                try {
-                  await api.createTest(
-                    categoryId: selectedCategory!.id,
-                    name: name,
-                    sampleType: sample,
-                  );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  ref.invalidate(labTestsFutureProvider);
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(
-                      ctx,
-                    ).showSnackBar(SnackBar(content: Text(e.toString())));
-                  }
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showEditTest(
-    BuildContext context,
-    WidgetRef ref,
-    LabTest test,
-  ) async {
-    final api = ref.read(labApiServiceProvider);
-    final cats = await api.getCategories(take: 500);
-    if (!context.mounted) return;
-    final nameController = TextEditingController(text: test.name);
-    final sampleController = TextEditingController(text: test.sampleType);
-    LabCategory? selectedCategory;
-    for (final c in cats.data) {
-      if (c.id == test.category?.id) {
-        selectedCategory = c;
-        break;
-      }
+  Future<List<T>> _fetchAll<T>({
+    required Future<({List<T> data, int total})> Function(int skip, int take)
+    page,
+  }) async {
+    const take = 500;
+    final first = await page(0, take);
+    final all = [...first.data];
+    while (all.length < first.total) {
+      final next = await page(all.length, take);
+      if (next.data.isEmpty) break;
+      all.addAll(next.data);
+      if (next.data.length < take) break;
     }
-    selectedCategory ??=
-        cats.data.isNotEmpty ? cats.data.first : null;
-
-    if (!context.mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('Edit test'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<LabCategory>(
-                  initialValue: selectedCategory,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: cats.data
-                      .map(
-                        (c) => DropdownMenuItem(value: c, child: Text(c.name)),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => selectedCategory = v),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Test name',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: sampleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Sample type',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                final sample = sampleController.text.trim();
-                if (name.isEmpty ||
-                    sample.isEmpty ||
-                    selectedCategory == null) {
-                  return;
-                }
-                try {
-                  await api.updateTest(
-                    test.id,
-                    categoryId: selectedCategory!.id,
-                    name: name,
-                    sampleType: sample,
-                  );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  ref.invalidate(labTestsFutureProvider);
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
-                  }
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return all;
   }
 
-  void _confirmDeleteTest(
-    BuildContext context,
-    WidgetRef ref,
-    LabTest test,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete test'),
-        content: Text(
-          'Delete "${test.name}"? Versions and fields will be removed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            onPressed: () async {
-              try {
-                await ref.read(labApiServiceProvider).deleteTest(test.id);
-                if (ctx.mounted) Navigator.pop(ctx);
-                ref.invalidate(labTestsFutureProvider);
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
-                }
-              }
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VersionsTab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_VersionsTab> createState() => _VersionsTabState();
-}
-
-class _VersionsTabState extends ConsumerState<_VersionsTab> {
-  String? _selectedTestId;
-  List<LabTestVersion>? _versions;
-  bool _loadingVersions = false;
-  String? _versionError;
-
-  @override
-  Widget build(BuildContext context) {
-    final ref = this.ref;
-    final asyncTests = ref.watch(labTestsFutureProvider);
-    return asyncTests.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(err.toString(), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => ref.invalidate(labTestsFutureProvider),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      data: (response) {
-        final tests = response.data;
-        final selectedTest = _selectedTestId == null
-            ? null
-            : tests.where((t) => t.id == _selectedTestId).firstOrNull;
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              'Select a test to manage versions',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<LabTest>(
-              initialValue: selectedTest,
-              decoration: const InputDecoration(
-                labelText: 'Test',
-                border: OutlineInputBorder(),
-              ),
-              items: tests
-                  .map(
-                    (t) => DropdownMenuItem(
-                      value: t,
-                      child: Text('${t.name} (${t.category?.name ?? "—"})'),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (t) {
-                setState(() {
-                  _selectedTestId = t?.id;
-                  _versions = null;
-                  _versionError = null;
-                  if (t != null) _loadVersions(ref, t.id);
-                });
-              },
-            ),
-            if (_selectedTestId != null) ...[
-              const SizedBox(height: 24),
-              if (_loadingVersions)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              else if (_versionError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    _versionError!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                )
-              else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Versions',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    FilledButton.icon(
-                      onPressed: _selectedTestId == null
-                          ? null
-                          : () => _createVersion(context, ref),
-                      icon: const Icon(Icons.add_rounded, size: 20),
-                      label: const Text('Create version'),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (_versions == null || _versions!.isEmpty)
-                  Card(
-                    child: const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Center(
-                        child: Text(
-                          'No versions yet. Create one to define result fields.',
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  ..._versions!.map(
-                    (v) => Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 8,
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primaryContainer,
-                          child: Text(
-                            'v${v.versionNumber}',
-                            style: Theme.of(context).textTheme.labelMedium
-                                ?.copyWith(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ),
-                        title: Text(
-                          'Version ${v.versionNumber}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          v.isActive ? 'Active' : 'Inactive',
-                          style: TextStyle(
-                            color: v.isActive
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                            fontWeight: v.isActive
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _loadVersions(WidgetRef ref, String testId) async {
+  Future<void> _reload() async {
+    final showFullLoader = _categories.isEmpty && _tests.isEmpty;
     setState(() {
-      _loadingVersions = true;
-      _versionError = null;
+      _loading = showFullLoader;
+      _refreshing = !showFullLoader;
+      _loadError = null;
     });
     try {
-      final list = await ref
-          .read(labApiServiceProvider)
-          .getTestVersions(testId);
-      if (mounted) {
-        setState(() {
-          _versions = list;
-          _loadingVersions = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _versionError = e.toString();
-          _loadingVersions = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _createVersion(BuildContext context, WidgetRef ref) async {
-    final testId = _selectedTestId;
-    if (testId == null) return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    try {
-      await ref
-          .read(labApiServiceProvider)
-          .createTestVersion(testId, setActive: true);
-      if (!context.mounted) return;
-      ref.invalidate(labTestsFutureProvider);
-      setState(() {
-        _versions = null;
-      });
-      _loadVersions(ref, testId);
-      messenger?.showSnackBar(
-        const SnackBar(content: Text('Version created and set active')),
+      final api = _api;
+      final categoriesFuture = _fetchAll<LabCategory>(
+        page: (skip, take) async {
+          final response = await api.getCategories(skip: skip, take: take);
+          return (data: response.data, total: response.total);
+        },
       );
-    } catch (e) {
-      if (context.mounted && messenger != null) {
-        messenger.showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+      final testsFuture = _fetchAll<LabTest>(
+        page: (skip, take) async {
+          final response = await api.getTests(skip: skip, take: take);
+          return (data: response.data, total: response.total);
+        },
+      );
+      final antibioticsFuture = _fetchAll<LabAntibiotic>(
+        page: (skip, take) async {
+          final response = await api.getAntibiotics(skip: skip, take: take);
+          return (data: response.data, total: response.total);
+        },
+      );
+      final astFuture = _fetchAll<LabAstResultOption>(
+        page: (skip, take) async {
+          final response = await api.getAstResultOptions(
+            skip: skip,
+            take: take,
+          );
+          return (data: response.data, total: response.total);
+        },
+      );
+      final categories = await categoriesFuture;
+      final tests = await testsFuture;
+      final antibiotics = await antibioticsFuture;
+      final astOptions = await astFuture;
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _tests = tests;
+        _antibiotics = antibiotics;
+        _astOptions = astOptions;
+        _loading = false;
+        _refreshing = false;
+        _pruneSelection();
+        if (!_appliedInitialExpand) {
+          _appliedInitialExpand = true;
+          if (categories.length <= 6) {
+            _expandedIds
+              ..addAll(categories.map((category) => category.id))
+              ..add(_uncategorizedId);
+          }
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _refreshing = false;
+        _loadError = labConfigErrorMessage(error);
+      });
     }
   }
-}
 
-class _FieldsTab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_FieldsTab> createState() => _FieldsTabState();
-}
+  void _invalidateShared() {
+    ref.invalidate(labCategoriesFutureProvider);
+    ref.invalidate(labTestsFutureProvider);
+    ref.invalidate(labAntibioticsFutureProvider);
+    ref.invalidate(labAstResultOptionsFutureProvider);
+  }
 
-class _FieldsTabState extends ConsumerState<_FieldsTab> {
-  String? _selectedTestId;
-  String? _selectedVersionId;
-  List<LabTestVersion>? _versions;
-  List<LabTestField>? _fields;
-  bool _loadingVersions = false;
-  bool _loadingFields = false;
-  String? _error;
+  void _snack(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(labConfigErrorMessage(error))));
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final ref = this.ref;
-    final asyncTests = ref.watch(labTestsFutureProvider);
-    return asyncTests.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(err.toString(), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => ref.invalidate(labTestsFutureProvider),
-                child: const Text('Retry'),
-              ),
-            ],
+  void _pruneSelection() {
+    if (_selectedTest != null) {
+      _selectedCategoryId = _selectedTest!.category?.id ?? _selectedCategoryId;
+    } else if (_selectedTestId != null) {
+      _selectedTestId = null;
+      _selectedVersionId = null;
+      _showDetail = false;
+    }
+    if (_selectedCategoryId != null &&
+        _selectedCategoryId != _uncategorizedId &&
+        !_categories.any((category) => category.id == _selectedCategoryId)) {
+      _selectedCategoryId = _selectedTest?.category?.id;
+    }
+  }
+
+  LabTest? get _selectedTest {
+    final id = _selectedTestId;
+    if (id == null) return null;
+    for (final test in _tests) {
+      if (test.id == id) return test;
+    }
+    return null;
+  }
+
+  LabCategory? _categoryById(String? id) {
+    if (id == null || id == _uncategorizedId) return null;
+    for (final category in _categories) {
+      if (category.id == id) return category;
+    }
+    return null;
+  }
+
+  List<LabConfigGroup> get _visibleGroups {
+    final query = _query.trim().toLowerCase();
+    final buckets = <String, List<LabTest>>{};
+    for (final test in _tests) {
+      final id = test.category?.id;
+      final key = (id == null || id.isEmpty) ? _uncategorizedId : id;
+      buckets.putIfAbsent(key, () => []).add(test);
+    }
+
+    List<LabTest> visibleTests(List<LabTest> tests, {required bool nameMatch}) {
+      final scoped = _activeOnly
+          ? tests.where((test) => test.isActive).toList()
+          : tests;
+      if (query.isEmpty || nameMatch) {
+        scoped.sort((a, b) => compareLabText(a.name, b.name));
+        return scoped;
+      }
+      final matched = scoped.where((test) {
+        return test.name.toLowerCase().contains(query) ||
+            test.sampleType.toLowerCase().contains(query) ||
+            (test.description ?? '').toLowerCase().contains(query);
+      }).toList()..sort((a, b) => compareLabText(a.name, b.name));
+      return matched;
+    }
+
+    final groups = <LabConfigGroup>[];
+    final categories = [..._categories]
+      ..sort((a, b) => compareLabText(a.name, b.name));
+    for (final category in categories) {
+      if (_categoryFilterId != null && category.id != _categoryFilterId) {
+        continue;
+      }
+      final all = buckets[category.id] ?? const <LabTest>[];
+      final nameMatch =
+          query.isEmpty ||
+          category.name.toLowerCase().contains(query) ||
+          (category.description ?? '').toLowerCase().contains(query);
+      final tests = visibleTests(all, nameMatch: nameMatch);
+      final scopedCount = _activeOnly
+          ? all.where((test) => test.isActive).length
+          : all.length;
+      if (query.isNotEmpty && !nameMatch && tests.isEmpty) continue;
+      groups.add(
+        LabConfigGroup(
+          id: category.id,
+          name: category.name,
+          description: category.description,
+          category: category,
+          tests: tests,
+          totalTests: scopedCount,
+        ),
+      );
+    }
+
+    if (_categoryFilterId == null) {
+      final known = {for (final category in _categories) category.id};
+      for (final entry in buckets.entries) {
+        if (known.contains(entry.key)) continue;
+        final name = entry.key == _uncategorizedId
+            ? 'Uncategorized'
+            : (entry.value.first.category?.name ?? 'Unknown category');
+        final nameMatch = query.isEmpty || name.toLowerCase().contains(query);
+        final tests = visibleTests(entry.value, nameMatch: nameMatch);
+        if (query.isNotEmpty && !nameMatch && tests.isEmpty) continue;
+        groups.add(
+          LabConfigGroup(
+            id: entry.key,
+            name: name,
+            tests: tests,
+            totalTests: _activeOnly
+                ? entry.value.where((test) => test.isActive).length
+                : entry.value.length,
+          ),
+        );
+      }
+    }
+    return groups;
+  }
+
+  Set<String> get _effectiveExpanded {
+    if (_query.trim().isEmpty && _categoryFilterId == null) return _expandedIds;
+    return {for (final group in _visibleGroups) group.id};
+  }
+
+  String get _catalogFooter {
+    final groups = _visibleGroups;
+    final shown = groups.fold<int>(
+      0,
+      (count, group) => count + group.tests.length,
+    );
+    final filtering =
+        _query.trim().isNotEmpty || _categoryFilterId != null || _activeOnly;
+    if (filtering) {
+      return '${groups.length} categories · $shown tests match';
+    }
+    return '${_categories.length} categories · ${_tests.length} tests';
+  }
+
+  int _activeCount<T>(List<T> items, bool Function(T item) active) =>
+      items.where(active).length;
+
+  List<LabConfigLookupRow> get _lookupRows {
+    final query = _query.trim().toLowerCase();
+    if (_section == LabConfigSection.antibiotics) {
+      final rows = [..._antibiotics]
+        ..sort((a, b) {
+          final byPosition = a.position.compareTo(b.position);
+          return byPosition != 0 ? byPosition : compareLabText(a.name, b.name);
+        });
+      return [
+        for (final item in rows)
+          if ((!_activeOnly || item.isActive) &&
+              (query.isEmpty ||
+                  item.name.toLowerCase().contains(query) ||
+                  (item.code ?? '').toLowerCase().contains(query)))
+            LabConfigLookupRow(
+              id: item.id,
+              title: item.name,
+              subtitle: [
+                if (item.code != null && item.code!.isNotEmpty) item.code!,
+                'Position ${item.position}',
+                if (!item.isActive) 'Inactive',
+              ].join(' · '),
+              active: item.isActive,
+            ),
+      ];
+    }
+    final rows = [..._astOptions]
+      ..sort((a, b) {
+        final byPosition = a.position.compareTo(b.position);
+        return byPosition != 0 ? byPosition : compareLabText(a.label, b.label);
+      });
+    return [
+      for (final item in rows)
+        if ((!_activeOnly || item.isActive) &&
+            (query.isEmpty ||
+                item.label.toLowerCase().contains(query) ||
+                (item.code ?? '').toLowerCase().contains(query)))
+          LabConfigLookupRow(
+            id: item.id,
+            title: item.label,
+            subtitle: [
+              if (item.code != null && item.code!.isNotEmpty) item.code!,
+              'Position ${item.position}',
+              if (!item.isActive) 'Inactive',
+            ].join(' · '),
+            active: item.isActive,
+          ),
+    ];
+  }
+
+  String get _lookupFooter {
+    final shown = _lookupRows.length;
+    final total = _section == LabConfigSection.antibiotics
+        ? _antibiotics.length
+        : _astOptions.length;
+    final noun = _section == LabConfigSection.antibiotics
+        ? 'antibiotics'
+        : 'AST options';
+    if (shown == total) return '$total $noun';
+    return '$shown of $total $noun';
+  }
+
+  bool get _expansionLocked =>
+      _query.trim().isNotEmpty || _categoryFilterId != null;
+
+  void _toggleGroup(String id) {
+    if (_expansionLocked) return;
+    setState(() {
+      if (_expandedIds.contains(id)) {
+        _expandedIds.remove(id);
+      } else {
+        _expandedIds.add(id);
+      }
+    });
+  }
+
+  void _selectCategory(LabConfigGroup group) {
+    if (group.category == null) {
+      _toggleGroup(group.id);
+      return;
+    }
+    setState(() {
+      _selectedCategoryId = group.id;
+      _selectedTestId = null;
+      _selectedVersionId = null;
+      _showDetail = false;
+      _expandedIds.add(group.id);
+    });
+  }
+
+  void _selectTest(LabTest test, String groupId) {
+    setState(() {
+      _selectedTestId = test.id;
+      _selectedCategoryId = test.category?.id ?? groupId;
+      _selectedVersionId = null;
+      _showDetail = true;
+      _expandedIds.add(groupId);
+      _detailError = null;
+    });
+    _loadVersions(test.id);
+  }
+
+  Future<void> _loadVersions(String testId, {bool force = false}) async {
+    if (!force && _versionsByTest.containsKey(testId)) {
+      _selectDefaultVersion(testId);
+      return;
+    }
+    final token = ++_detailToken;
+    setState(() {
+      _loadingVersions = true;
+      _detailError = null;
+    });
+    try {
+      final versions = await _api.getTestVersions(testId);
+      if (!mounted || token != _detailToken) return;
+      versions.sort((a, b) => b.versionNumber.compareTo(a.versionNumber));
+      setState(() {
+        _versionsByTest[testId] = versions;
+        _loadingVersions = false;
+      });
+      _selectDefaultVersion(testId);
+    } catch (error) {
+      if (!mounted || token != _detailToken) return;
+      setState(() {
+        _loadingVersions = false;
+        _loadingFields = false;
+        _detailError = labConfigErrorMessage(error);
+      });
+    }
+  }
+
+  void _selectDefaultVersion(String testId) {
+    if (_selectedTestId != testId) return;
+    final versions = _versionsByTest[testId];
+    if (versions == null || versions.isEmpty) {
+      setState(() {
+        _selectedVersionId = null;
+        _loadingFields = false;
+      });
+      return;
+    }
+    final current = versions
+        .where((version) => version.id == _selectedVersionId)
+        .firstOrNull;
+    final next =
+        current ??
+        versions.where((version) => version.isActive).firstOrNull ??
+        versions.first;
+    setState(() => _selectedVersionId = next.id);
+    _loadFields(next.id);
+  }
+
+  Future<void> _loadFields(String versionId, {bool force = false}) async {
+    if (!force && _fieldsByVersion.containsKey(versionId)) {
+      if (_loadingFields && mounted) setState(() => _loadingFields = false);
+      return;
+    }
+    final token = _detailToken;
+    setState(() {
+      _loadingFields = true;
+      _detailError = null;
+    });
+    try {
+      final fields = await _api.getTestFields(versionId);
+      if (!mounted ||
+          token != _detailToken ||
+          _selectedVersionId != versionId) {
+        return;
+      }
+      setState(() {
+        _fieldsByVersion[versionId] = fields;
+        _loadingFields = false;
+      });
+    } catch (error) {
+      if (!mounted || token != _detailToken) return;
+      setState(() {
+        _loadingFields = false;
+        _detailError = labConfigErrorMessage(error);
+      });
+    }
+  }
+
+  Future<void> _afterCatalogChange() async {
+    _invalidateShared();
+    await _reload();
+  }
+
+  Future<void> _addCategory() async {
+    final created = await showLabCategoryForm(context: context, api: _api);
+    if (created == null) return;
+    await _afterCatalogChange();
+    if (!mounted) return;
+    setState(() {
+      _section = LabConfigSection.catalog;
+      _selectedCategoryId = created.id;
+      _selectedTestId = null;
+      _expandedIds.add(created.id);
+    });
+  }
+
+  Future<void> _editCategory(LabCategory category) async {
+    final saved = await showLabCategoryForm(
+      context: context,
+      api: _api,
+      existing: category,
+    );
+    if (saved == null) return;
+    await _afterCatalogChange();
+  }
+
+  Future<void> _deleteCategory(LabCategory category) async {
+    final confirmed = await confirmLabConfigDelete(
+      context: context,
+      title: 'Delete category',
+      message:
+          'Delete "${category.name}"? Tests in this category may be affected.',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _api.deleteCategory(category.id);
+      if (_selectedCategoryId == category.id) {
+        setState(() {
+          _selectedCategoryId = null;
+          _selectedTestId = null;
+          _showDetail = false;
+        });
+      }
+      await _afterCatalogChange();
+    } catch (error) {
+      _snack(error);
+    }
+  }
+
+  Future<void> _addTest(LabCategory? category) async {
+    if (_categories.isEmpty) {
+      _snack('Add a category before adding a test.');
+      return;
+    }
+    final created = await showLabTestForm(
+      context: context,
+      api: _api,
+      categories: _categories,
+      initialCategoryId: category?.id ?? _selectedCategoryId,
+    );
+    if (created == null) return;
+    await _afterCatalogChange();
+    if (!mounted) return;
+    final groupId = created.category?.id;
+    if (groupId != null) _expandedIds.add(groupId);
+    _selectTest(
+      _tests.where((test) => test.id == created.id).firstOrNull ?? created,
+      groupId ?? _uncategorizedId,
+    );
+  }
+
+  Future<void> _editTest(LabTest test) async {
+    final saved = await showLabTestForm(
+      context: context,
+      api: _api,
+      categories: _categories,
+      existing: test,
+    );
+    if (saved == null) return;
+    await _afterCatalogChange();
+  }
+
+  Future<void> _deleteTest(LabTest test) async {
+    final confirmed = await confirmLabConfigDelete(
+      context: context,
+      title: 'Delete test',
+      message:
+          'Delete "${test.name}"? Its versions, result fields, and related order lines will be removed.',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _api.deleteTest(test.id);
+      _versionsByTest.remove(test.id);
+      if (_selectedTestId == test.id) {
+        setState(() {
+          _selectedTestId = null;
+          _selectedVersionId = null;
+          _showDetail = false;
+        });
+      }
+      await _afterCatalogChange();
+    } catch (error) {
+      _snack(error);
+    }
+  }
+
+  Future<void> _createVersion() async {
+    final test = _selectedTest;
+    if (test == null) return;
+    final versions = _versionsByTest[test.id] ?? const <LabTestVersion>[];
+    final source =
+        versions.where((version) => version.isActive).firstOrNull ??
+        versions.firstOrNull;
+    var copyFields = false;
+    List<LabTestField> sourceFields = const [];
+    try {
+      if (source != null) {
+        sourceFields =
+            _fieldsByVersion[source.id] ?? await _api.getTestFields(source.id);
+        if (!mounted) return;
+        if (sourceFields.isNotEmpty) {
+          final choice = await showLabVersionCreateChoice(
+            context: context,
+            testName: test.name,
+            fromVersion: source.versionNumber,
+            fieldCount: sourceFields.length,
+          );
+          if (choice == null || !mounted) return;
+          copyFields = choice == LabVersionCreateChoice.copyFields;
+        }
+      }
+      final created = await _api.createTestVersion(test.id, setActive: true);
+      if (copyFields) {
+        for (final field in sourceFields) {
+          await _api.createTestField(
+            testVersionId: created.id,
+            label: field.label,
+            fieldType: field.fieldType.name.toUpperCase(),
+            unit: field.unit,
+            referenceRange: field.referenceRange,
+            required: field.required,
+            position: field.position,
+            optionsJson: field.optionsJson,
+          );
+        }
+      }
+      if (!mounted) return;
+      _versionsByTest.remove(test.id);
+      _fieldsByVersion.remove(created.id);
+      setState(() => _selectedVersionId = created.id);
+      await _loadVersions(test.id, force: true);
+      await _loadFields(created.id, force: true);
+      if (!mounted) return;
+      _invalidateShared();
+      final copied = copyFields ? sourceFields.length : 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            copied == 0
+                ? 'Version ${created.versionNumber} is active. Add result fields.'
+                : 'Version ${created.versionNumber} is active, with $copied fields copied.',
           ),
         ),
-      ),
-      data: (response) {
-        final tests = response.data;
-        final selectedTest = _selectedTestId == null
-            ? null
-            : tests.where((t) => t.id == _selectedTestId).firstOrNull;
-        final selectedVersion = _versions == null || _selectedVersionId == null
-            ? null
-            : _versions!.where((v) => v.id == _selectedVersionId).firstOrNull;
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              'Select test and version to manage result fields',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<LabTest>(
-              initialValue: selectedTest,
-              decoration: const InputDecoration(
-                labelText: 'Test',
-                border: OutlineInputBorder(),
-              ),
-              items: tests
-                  .map(
-                    (t) => DropdownMenuItem(
-                      value: t,
-                      child: Text('${t.name} (${t.category?.name ?? "—"})'),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (t) {
-                setState(() {
-                  _selectedTestId = t?.id;
-                  _selectedVersionId = null;
-                  _versions = null;
-                  _fields = null;
-                  _error = null;
-                  if (t != null) _loadVersions(ref, t.id);
-                });
-              },
-            ),
-            if (_selectedTestId != null && _loadingVersions)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            if (_selectedTestId != null &&
-                _versions != null &&
-                !_loadingVersions) ...[
-              const SizedBox(height: 16),
-              DropdownButtonFormField<LabTestVersion>(
-                initialValue: selectedVersion,
-                decoration: const InputDecoration(
-                  labelText: 'Version',
-                  border: OutlineInputBorder(),
+      );
+    } catch (error) {
+      _snack(error);
+    }
+  }
+
+  Future<void> _addField() async {
+    final versionId = _selectedVersionId;
+    if (versionId == null) return;
+    final fields = _fieldsByVersion[versionId] ?? const <LabTestField>[];
+    final saved = await showLabFieldForm(
+      context: context,
+      api: _api,
+      versionId: versionId,
+      nextPosition: fields.length,
+    );
+    if (!saved) return;
+    _invalidateShared();
+    _fieldsByVersion.remove(versionId);
+    _versionsByTest.remove(_selectedTestId);
+    await _loadFields(versionId, force: true);
+    final testId = _selectedTestId;
+    if (testId != null) await _loadVersions(testId, force: true);
+  }
+
+  Future<void> _editField(LabTestField field) async {
+    final versionId = _selectedVersionId;
+    if (versionId == null) return;
+    final saved = await showLabFieldForm(
+      context: context,
+      api: _api,
+      versionId: versionId,
+      nextPosition: field.position,
+      existing: field,
+    );
+    if (!saved) return;
+    _invalidateShared();
+    await _loadFields(versionId, force: true);
+  }
+
+  Future<void> _deleteField(LabTestField field) async {
+    final versionId = _selectedVersionId;
+    if (versionId == null) return;
+    final confirmed = await confirmLabConfigDelete(
+      context: context,
+      title: 'Delete field',
+      message: 'Remove "${field.label}" from this version?',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _api.deleteTestField(field.id);
+      _invalidateShared();
+      await _loadFields(versionId, force: true);
+      final testId = _selectedTestId;
+      if (testId != null) {
+        _versionsByTest.remove(testId);
+        await _loadVersions(testId, force: true);
+      }
+    } catch (error) {
+      _snack(error);
+    }
+  }
+
+  Future<void> _moveField(LabTestField field, int delta) async {
+    final versionId = _selectedVersionId;
+    if (versionId == null) return;
+    final fields = [...?_fieldsByVersion[versionId]]
+      ..sort((a, b) {
+        final byPosition = a.position.compareTo(b.position);
+        if (byPosition != 0) return byPosition;
+        return compareLabText(a.label, b.label);
+      });
+    final index = fields.indexWhere((item) => item.id == field.id);
+    final target = index + delta;
+    if (index < 0 || target < 0 || target >= fields.length) return;
+    final reordered = [...fields];
+    final moved = reordered.removeAt(index);
+    reordered.insert(target, moved);
+    try {
+      for (var i = 0; i < reordered.length; i++) {
+        if (reordered[i].position != i) {
+          await _api.updateTestField(reordered[i].id, position: i);
+        }
+      }
+      _invalidateShared();
+      await _loadFields(versionId, force: true);
+    } catch (error) {
+      _snack(error);
+    }
+  }
+
+  Future<void> _addAntibiotic() async {
+    final next = _antibiotics.isEmpty
+        ? 0
+        : _antibiotics
+                  .map((item) => item.position)
+                  .reduce((a, b) => a > b ? a : b) +
+              1;
+    final created = await showLabAntibioticForm(
+      context: context,
+      api: _api,
+      nextPosition: next,
+    );
+    if (created == null) return;
+    await _afterCatalogChange();
+  }
+
+  Future<void> _editAntibiotic(String id) async {
+    final existing = _antibiotics.where((item) => item.id == id).firstOrNull;
+    if (existing == null) return;
+    final saved = await showLabAntibioticForm(
+      context: context,
+      api: _api,
+      existing: existing,
+    );
+    if (saved == null) return;
+    await _afterCatalogChange();
+  }
+
+  Future<void> _deleteAntibiotic(String id) async {
+    final existing = _antibiotics.where((item) => item.id == id).firstOrNull;
+    if (existing == null) return;
+    final confirmed = await confirmLabConfigDelete(
+      context: context,
+      title: 'Delete antibiotic',
+      message:
+          'Delete "${existing.name}"? If it is used on AST reports, deactivate it instead.',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _api.deleteAntibiotic(id);
+      await _afterCatalogChange();
+    } catch (error) {
+      _snack(error);
+    }
+  }
+
+  Future<void> _addAstOption() async {
+    final next = _astOptions.isEmpty
+        ? 0
+        : _astOptions
+                  .map((item) => item.position)
+                  .reduce((a, b) => a > b ? a : b) +
+              1;
+    final created = await showLabAstOptionForm(
+      context: context,
+      api: _api,
+      nextPosition: next,
+    );
+    if (created == null) return;
+    await _afterCatalogChange();
+  }
+
+  Future<void> _editAstOption(String id) async {
+    final existing = _astOptions.where((item) => item.id == id).firstOrNull;
+    if (existing == null) return;
+    final saved = await showLabAstOptionForm(
+      context: context,
+      api: _api,
+      existing: existing,
+    );
+    if (saved == null) return;
+    await _afterCatalogChange();
+  }
+
+  Future<void> _deleteAstOption(String id) async {
+    final existing = _astOptions.where((item) => item.id == id).firstOrNull;
+    if (existing == null) return;
+    final confirmed = await confirmLabConfigDelete(
+      context: context,
+      title: 'Delete AST option',
+      message:
+          'Delete "${existing.label}"? If it is used on AST reports, deactivate it instead.',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _api.deleteAstResultOption(id);
+      await _afterCatalogChange();
+    } catch (error) {
+      _snack(error);
+    }
+  }
+
+  void _openAddMenu() {
+    switch (_section) {
+      case LabConfigSection.catalog:
+        return;
+      case LabConfigSection.antibiotics:
+        _addAntibiotic();
+      case LabConfigSection.ast:
+        _addAstOption();
+    }
+  }
+
+  void _openFilters(bool showCategoryFilter) {
+    var activeOnly = _activeOnly;
+    var categoryId = _categoryFilterId;
+    showLabFilterMenu(
+      context,
+      StatefulBuilder(
+        builder: (context, setLocal) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (showCategoryFilter &&
+                  _section == LabConfigSection.catalog) ...[
+                _categoryDropdown(
+                  value: categoryId,
+                  onChanged: (value) {
+                    setLocal(() => categoryId = value);
+                    setState(() => _categoryFilterId = value);
+                  },
                 ),
-                items: _versions!
-                    .map(
-                      (v) => DropdownMenuItem(
-                        value: v,
-                        child: Text(
-                          'v${v.versionNumber}${v.isActive ? ' (active)' : ''}',
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) {
-                  setState(() {
-                    _selectedVersionId = v?.id;
-                    _fields = null;
-                    _error = null;
-                    if (v != null) _loadFields(ref, v.id);
-                  });
+                const SizedBox(height: 8),
+              ],
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Active only'),
+                value: activeOnly,
+                onChanged: (value) {
+                  setLocal(() => activeOnly = value);
+                  setState(() => _activeOnly = value);
                 },
               ),
             ],
-            if (_selectedVersionId != null) ...[
-              const SizedBox(height: 24),
-              if (_loadingFields)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _categoryDropdown({
+    required String? value,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final categories = [..._categories]
+      ..sort((a, b) => compareLabText(a.name, b.name));
+    return DropdownButtonFormField<String?>(
+      key: ValueKey(value),
+      initialValue: value,
+      isExpanded: true,
+      decoration: labConfigFieldDecoration(context, label: 'Category'),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('All categories'),
+        ),
+        for (final category in categories)
+          DropdownMenuItem<String?>(
+            value: category.id,
+            child: Text(category.name, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: cs.surface,
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < LabClinicalUi.cardBreakpoint;
+          final split = width >= LabClinicalUi.sidebarBreakpoint;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _header(compact),
+              const SizedBox(height: 10),
+              LabKpiStrip(
+                useSnapStrip: width < 520,
+                items: [
+                  LabKpiItem(
+                    label: 'Categories',
+                    value: _loading ? '—' : '${_categories.length}',
+                    caption: 'Groups of tests',
+                    icon: Icons.folder_rounded,
+                    accent: LabClinicalUi.iconBlue,
                   ),
-                )
-              else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Result fields',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    FilledButton.icon(
-                      onPressed: () => _showAddField(context, ref),
-                      icon: const Icon(Icons.add_rounded, size: 20),
-                      label: const Text('Add field'),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _error!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
+                  LabKpiItem(
+                    label: 'Tests',
+                    value: _loading ? '—' : '${_tests.length}',
+                    caption: _loading
+                        ? '—'
+                        : '${_activeCount(_tests, (test) => test.isActive)} active',
+                    icon: Icons.science_rounded,
+                    accent: LabClinicalUi.iconTeal,
                   ),
-                if (_fields == null || _fields!.isEmpty)
-                  Card(
-                    child: const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Center(
-                        child: Text(
-                          'No fields yet. Add fields to build the result form (e.g. TEXT, NUMBER, DROPDOWN, DATE).',
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  ...(_fields!
-                        ..sort((a, b) => a.position.compareTo(b.position)))
-                      .map(
-                        (f) => Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
-                            ),
-                            leading: CircleAvatar(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.tertiaryContainer,
-                              child: Icon(
-                                _iconForFieldType(f.fieldType),
-                                size: 20,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onTertiaryContainer,
-                              ),
-                            ),
-                            title: Text(
-                              f.label,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${f.fieldType.name.toUpperCase()}${f.required ? ' · Required' : ''}${f.unit != null ? ' · ${f.unit}' : ''}',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (action) {
-                                if (action == 'edit') {
-                                  _showEditField(context, ref, f);
-                                } else if (action == 'delete') {
-                                  _confirmDeleteField(context, ref, f);
-                                }
-                              },
-                              itemBuilder: (ctx) => const [
-                                PopupMenuItem(
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-              ],
+                  LabKpiItem(
+                    label: 'Antibiotics',
+                    value: _loading ? '—' : '${_antibiotics.length}',
+                    caption: _loading
+                        ? '—'
+                        : '${_activeCount(_antibiotics, (item) => item.isActive)} active',
+                    icon: Icons.medication_rounded,
+                    accent: LabClinicalUi.iconPink,
+                  ),
+                  LabKpiItem(
+                    label: 'AST options',
+                    value: _loading ? '—' : '${_astOptions.length}',
+                    caption: _loading
+                        ? '—'
+                        : '${_activeCount(_astOptions, (item) => item.isActive)} active',
+                    icon: Icons.grid_view_rounded,
+                    accent: LabClinicalUi.iconPurple,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _sectionChips(),
+              const SizedBox(height: 10),
+              _filterRow(compact),
+              const SizedBox(height: 10),
+              Expanded(
+                child: _body(split: split, useCards: compact),
+              ),
             ],
-          ],
-        );
-      },
-    );
-  }
-
-  static IconData _iconForFieldType(LabFieldType t) {
-    switch (t) {
-      case LabFieldType.text:
-        return Icons.text_fields_rounded;
-      case LabFieldType.number:
-        return Icons.numbers_rounded;
-      case LabFieldType.dropdown:
-        return Icons.arrow_drop_down_rounded;
-      case LabFieldType.checkbox:
-        return Icons.check_box_rounded;
-      case LabFieldType.multiselect:
-        return Icons.checklist_rounded;
-      case LabFieldType.date:
-        return Icons.calendar_today_rounded;
-    }
-  }
-
-  Future<void> _loadVersions(WidgetRef ref, String testId) async {
-    setState(() {
-      _loadingVersions = true;
-      _error = null;
-    });
-    try {
-      final list = await ref
-          .read(labApiServiceProvider)
-          .getTestVersions(testId);
-      if (mounted) {
-        final firstVersionId = list.isNotEmpty ? list.first.id : null;
-        setState(() {
-          _versions = list;
-          _loadingVersions = false;
-          _selectedVersionId = firstVersionId;
-          _fields = null;
-        });
-        if (firstVersionId != null) {
-          _loadFields(ref, firstVersionId);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _loadingVersions = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadFields(WidgetRef ref, String versionId) async {
-    setState(() {
-      _loadingFields = true;
-      _error = null;
-    });
-    try {
-      final list = await ref
-          .read(labApiServiceProvider)
-          .getTestFields(versionId);
-      if (mounted) {
-        setState(() {
-          _fields = list;
-          _loadingFields = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _loadingFields = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _showAddField(BuildContext context, WidgetRef ref) async {
-    if (_selectedVersionId == null) return;
-    final labelController = TextEditingController();
-    final unitController = TextEditingController();
-    final refRangeController = TextEditingController();
-    final optionsController = TextEditingController();
-    final positionController = TextEditingController(
-      text: (_fields?.length ?? 0).toString(),
-    );
-    LabFieldType selectedType = LabFieldType.text;
-    bool required = false;
-
-    if (!context.mounted) return;
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add result field'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: labelController,
-                  decoration: const InputDecoration(
-                    labelText: 'Label',
-                    hintText: 'e.g. Haemoglobin',
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<LabFieldType>(
-                  initialValue: selectedType,
-                  decoration: const InputDecoration(labelText: 'Field type'),
-                  items: LabFieldType.values
-                      .map(
-                        (t) => DropdownMenuItem(
-                          value: t,
-                          child: Text(t.name.toUpperCase()),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setDialogState(() => selectedType = v);
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: unitController,
-                  decoration: const InputDecoration(
-                    labelText: 'Unit (optional)',
-                    hintText: 'e.g. g/dL',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: refRangeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reference range (optional)',
-                    hintText: 'e.g. 12-16',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (selectedType == LabFieldType.dropdown ||
-                    selectedType == LabFieldType.multiselect)
-                  TextField(
-                    controller: optionsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Options (JSON)',
-                      hintText: '["A","B"] or [{"value":"a","label":"A"}]',
-                    ),
-                    maxLines: 2,
-                  ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: positionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Position (order)',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  title: const Text('Required'),
-                  value: required,
-                  onChanged: (v) => setDialogState(() => required = v ?? false),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final label = labelController.text.trim();
-                if (label.isEmpty) return;
-                final api = ref.read(labApiServiceProvider);
-                String? optionsJson;
-                if (selectedType == LabFieldType.dropdown ||
-                    selectedType == LabFieldType.multiselect) {
-                  final opt = optionsController.text.trim();
-                  if (opt.isNotEmpty) optionsJson = opt;
-                }
-                try {
-                  final position =
-                      int.tryParse(positionController.text.trim()) ??
-                      (_fields?.length ?? 0);
-                  await api.createTestField(
-                    testVersionId: _selectedVersionId!,
-                    label: label,
-                    fieldType: selectedType.name.toUpperCase(),
-                    unit: unitController.text.trim().isEmpty
-                        ? null
-                        : unitController.text.trim(),
-                    referenceRange: refRangeController.text.trim().isEmpty
-                        ? null
-                        : refRangeController.text.trim(),
-                    required: required,
-                    position: position,
-                    optionsJson: optionsJson,
-                  );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  ref.invalidate(labTestsFutureProvider);
-                  _loadFields(ref, _selectedVersionId!);
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(
-                      ctx,
-                    ).showSnackBar(SnackBar(content: Text(e.toString())));
-                  }
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Future<void> _showEditField(
-    BuildContext context,
-    WidgetRef ref,
-    LabTestField field,
-  ) async {
-    if (_selectedVersionId == null) return;
-    final labelController = TextEditingController(text: field.label);
-    final unitController = TextEditingController(text: field.unit ?? '');
-    final refRangeController =
-        TextEditingController(text: field.referenceRange ?? '');
-    final optionsController =
-        TextEditingController(text: field.optionsJson ?? '');
-    final positionController =
-        TextEditingController(text: field.position.toString());
-    LabFieldType selectedType = field.fieldType;
-    bool required = field.required;
-
-    if (!context.mounted) return;
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Edit result field'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: labelController,
-                  decoration: const InputDecoration(labelText: 'Label'),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<LabFieldType>(
-                  initialValue: selectedType,
-                  decoration: const InputDecoration(labelText: 'Field type'),
-                  items: LabFieldType.values
-                      .map(
-                        (t) => DropdownMenuItem(
-                          value: t,
-                          child: Text(t.name.toUpperCase()),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setDialogState(() => selectedType = v);
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: unitController,
-                  decoration: const InputDecoration(
-                    labelText: 'Unit (optional)',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: refRangeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reference range (optional)',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (selectedType == LabFieldType.dropdown ||
-                    selectedType == LabFieldType.multiselect)
-                  TextField(
-                    controller: optionsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Options (JSON)',
-                    ),
-                    maxLines: 2,
-                  ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: positionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Position (order)',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  title: const Text('Required'),
-                  value: required,
-                  onChanged: (v) => setDialogState(() => required = v ?? false),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final label = labelController.text.trim();
-                if (label.isEmpty) return;
-                final api = ref.read(labApiServiceProvider);
-                String? optionsJson;
-                if (selectedType == LabFieldType.dropdown ||
-                    selectedType == LabFieldType.multiselect) {
-                  final opt = optionsController.text.trim();
-                  if (opt.isNotEmpty) optionsJson = opt;
-                }
-                try {
-                  final position =
-                      int.tryParse(positionController.text.trim()) ??
-                      field.position;
-                  await api.updateTestField(
-                    field.id,
-                    label: label,
-                    fieldType: selectedType.name.toUpperCase(),
-                    unit: unitController.text.trim().isEmpty
-                        ? null
-                        : unitController.text.trim(),
-                    referenceRange: refRangeController.text.trim().isEmpty
-                        ? null
-                        : refRangeController.text.trim(),
-                    required: required,
-                    position: position,
-                    optionsJson: optionsJson,
-                  );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  ref.invalidate(labTestsFutureProvider);
-                  _loadFields(ref, _selectedVersionId!);
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
-                  }
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
+  Widget _header(bool compact) {
+    final header = LabPageHeader(
+      title: 'Lab configuration',
+      subtitle: 'See what sits under each category, test, and version',
+      icon: Icons.account_tree_outlined,
+      iconColor: LabClinicalUi.iconAmber,
+      compact: compact,
+    );
+    if (!context.router.canPop()) return header;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        IconButton(
+          tooltip: 'Back',
+          onPressed: () => context.router.maybePop(),
+          icon: const Icon(Icons.arrow_back_rounded),
         ),
-      ),
+        Expanded(child: header),
+      ],
     );
   }
 
-  void _confirmDeleteField(
-    BuildContext context,
-    WidgetRef ref,
-    LabTestField field,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete field'),
-        content: Text(
-          'Remove "${field.label}" from this version?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+  Widget _sectionChips() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final section in LabConfigSection.values)
+          ChoiceChip(
+            label: Text(section.label),
+            selected: _section == section,
+            visualDensity: VisualDensity.compact,
+            onSelected: (_) => setState(() => _section = section),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      ],
+    );
+  }
+
+  Widget _filterRow(bool compact) {
+    final showCategory = !compact && _section == LabConfigSection.catalog;
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(fontSize: 12),
+            decoration: labConfigFieldDecoration(
+              context,
+              label: 'Search',
+              hint: _section.searchHint,
+              icon: Icons.search,
+              iconColor: LabClinicalUi.iconIndigo,
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                      icon: const Icon(Icons.close, size: 18),
+                    ),
             ),
-            onPressed: () async {
-              try {
-                await ref.read(labApiServiceProvider).deleteTestField(field.id);
-                if (ctx.mounted) Navigator.pop(ctx);
-                ref.invalidate(labTestsFutureProvider);
-                if (_selectedVersionId != null) {
-                  _loadFields(ref, _selectedVersionId!);
-                }
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
-                }
-              }
-            },
-            child: const Text('Delete'),
+          ),
+        ),
+        if (showCategory) ...[
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: _categoryDropdown(
+              value: _categoryFilterId,
+              onChanged: (value) => setState(() => _categoryFilterId = value),
+            ),
           ),
         ],
-      ),
+        const SizedBox(width: 8),
+        LabConfigIconButton(
+          tooltip: 'Filters',
+          icon: Icons.tune,
+          color: LabClinicalUi.iconPurple,
+          onPressed: () => _openFilters(compact),
+        ),
+        const SizedBox(width: 8),
+        if (_section == LabConfigSection.catalog)
+          PopupMenuButton<String>(
+            tooltip: 'Add',
+            enabled: !_loading,
+            padding: EdgeInsets.zero,
+            onSelected: (action) {
+              if (action == 'category') {
+                _addCategory();
+              }
+              if (action == 'test') {
+                _addTest(_categoryById(_selectedCategoryId));
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'category', child: Text('Add category')),
+              PopupMenuItem(value: 'test', child: Text('Add test')),
+            ],
+            icon: const HeltySolidIcon(
+              icon: Icons.add_rounded,
+              color: LabClinicalUi.iconTeal,
+              size: 32,
+              iconSize: 16,
+              radius: 8,
+            ),
+          )
+        else
+          LabConfigIconButton(
+            tooltip: 'Add',
+            icon: Icons.add_rounded,
+            color: LabClinicalUi.iconTeal,
+            onPressed: _loading ? null : _openAddMenu,
+          ),
+        const SizedBox(width: 8),
+        LabConfigIconButton(
+          tooltip: 'Refresh',
+          icon: Icons.refresh_rounded,
+          color: LabClinicalUi.iconBlue,
+          onPressed: _refreshing ? null : _reload,
+        ),
+      ],
     );
   }
-}
 
-// ── Antibiotics (MCS / AST panel) ───────────────────────────────────────────
-
-class _AntibioticsTab extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(labAntibioticsFutureProvider);
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(
+  Widget _body({required bool split, required bool useCards}) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loadError != null && _categories.isEmpty && _tests.isEmpty) {
+      return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(err.toString(), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => ref.invalidate(labAntibioticsFutureProvider),
-                child: const Text('Retry'),
-              ),
+              Text(_loadError!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: _reload, child: const Text('Retry')),
             ],
           ),
         ),
-      ),
-      data: (response) {
-        final list = List<LabAntibiotic>.from(response.data)
-          ..sort((a, b) {
-            final pc = a.position.compareTo(b.position);
-            return pc != 0 ? pc : a.name.compareTo(b.name);
-          });
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: list.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: ElevatedButton.icon(
-                  onPressed: () => _showCreateAntibiotic(context, ref),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add antibiotic'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              );
-            }
-            final abx = list[index - 1];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: abx.isActive
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Icon(
-                    Icons.medication_rounded,
-                    color: abx.isActive
-                        ? Theme.of(context).colorScheme.onPrimaryContainer
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                title: Text(abx.name),
-                subtitle: Text(
-                  [
-                    if (abx.code != null && abx.code!.isNotEmpty) abx.code!,
-                    'Position ${abx.position}',
-                    if (!abx.isActive) 'Inactive',
-                  ].join(' · '),
-                ),
-                trailing: PopupMenuButton<String>(
-                  onSelected: (action) {
-                    if (action == 'edit') {
-                      _showEditAntibiotic(context, ref, abx);
-                    } else if (action == 'delete') {
-                      _confirmDeleteAntibiotic(context, ref, abx);
-                    }
-                  },
-                  itemBuilder: (ctx) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      );
+    }
+    if (_section != LabConfigSection.catalog) {
+      final isAst = _section == LabConfigSection.ast;
+      return LabConfigLookupList(
+        title: isAst
+            ? 'Susceptibility values used when entering AST results'
+            : 'Antibiotics used on the susceptibility panel',
+        icon: isAst ? Icons.grid_view_rounded : Icons.medication_rounded,
+        accent: isAst ? LabClinicalUi.iconPurple : LabClinicalUi.iconPink,
+        rows: _lookupRows,
+        footerLabel: _lookupFooter,
+        emptyLabel: _query.isEmpty
+            ? 'Nothing here yet.'
+            : 'Nothing matches this search.',
+        onEdit: isAst ? _editAstOption : _editAntibiotic,
+        onDelete: isAst ? _deleteAstOption : _deleteAntibiotic,
+      );
+    }
+
+    final groups = _visibleGroups;
+    final tree = LabConfigTree(
+      groups: groups,
+      expandedIds: _effectiveExpanded,
+      selectedCategoryId: _selectedCategoryId,
+      selectedTestId: _selectedTestId,
+      useCards: useCards,
+      footerLabel: _catalogFooter,
+      expansionLocked: _expansionLocked,
+      onToggle: _toggleGroup,
+      onSelectCategory: _selectCategory,
+      onSelectTest: _selectTest,
+      onEditCategory: _editCategory,
+      onDeleteCategory: _deleteCategory,
+      onAddTest: _addTest,
+      onEditTest: _editTest,
+      onDeleteTest: _deleteTest,
     );
-  }
-
-  void _showCreateAntibiotic(BuildContext context, WidgetRef ref) {
-    _showAntibioticDialog(context, ref, title: 'New antibiotic');
-  }
-
-  void _showEditAntibiotic(
-    BuildContext context,
-    WidgetRef ref,
-    LabAntibiotic abx,
-  ) {
-    _showAntibioticDialog(context, ref, title: 'Edit antibiotic', existing: abx);
-  }
-
-  void _showAntibioticDialog(
-    BuildContext context,
-    WidgetRef ref, {
-    required String title,
-    LabAntibiotic? existing,
-  }) {
-    final nameController = TextEditingController(text: existing?.name ?? '');
-    final codeController = TextEditingController(text: existing?.code ?? '');
-    final positionController = TextEditingController(
-      text: (existing?.position ?? 0).toString(),
-    );
-    var isActive = existing?.isActive ?? true;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    hintText: 'e.g. Amoxicillin',
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: codeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Code (optional)',
-                    hintText: 'e.g. AMX',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: positionController,
-                  decoration: const InputDecoration(labelText: 'Position'),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Active'),
-                  subtitle: const Text(
-                    'Deactivate instead of delete when used on reports',
-                  ),
-                  value: isActive,
-                  onChanged: (v) => setDialogState(() => isActive = v),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                final position =
-                    int.tryParse(positionController.text.trim()) ?? 0;
-                final code = codeController.text.trim();
-                try {
-                  final api = ref.read(labApiServiceProvider);
-                  if (existing == null) {
-                    await api.createAntibiotic(
-                      name: name,
-                      code: code.isEmpty ? null : code,
-                      isActive: isActive,
-                      position: position,
-                    );
-                  } else {
-                    await api.updateAntibiotic(
-                      existing.id,
-                      name: name,
-                      code: code.isEmpty ? '' : code,
-                      isActive: isActive,
-                      position: position,
-                    );
-                  }
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  ref.invalidate(labAntibioticsFutureProvider);
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
-                  }
-                }
-              },
-              child: Text(existing == null ? 'Create' : 'Save'),
-            ),
-          ],
-        ),
+    final test = _selectedTest;
+    final category = _categoryById(test?.category?.id ?? _selectedCategoryId);
+    final group = groups
+        .where((item) => item.id == (category?.id ?? _selectedCategoryId))
+        .firstOrNull;
+    final detail = LabConfigDetail(
+      category: category,
+      test: test,
+      categoryTests: group?.tests ?? const [],
+      versions: test == null ? null : _versionsByTest[test.id],
+      fields: _selectedVersionId == null
+          ? null
+          : _fieldsByVersion[_selectedVersionId],
+      selectedVersionId: _selectedVersionId,
+      loadingVersions: _loadingVersions,
+      loadingFields: _loadingFields,
+      error: _detailError,
+      useCards: useCards,
+      showBack: !split,
+      actions: LabConfigDetailActions(
+        onBack: () => setState(() => _showDetail = false),
+        onOpenCategory: () => setState(() {
+          _selectedTestId = null;
+          _selectedVersionId = null;
+          _showDetail = false;
+        }),
+        onSelectTest: (item) =>
+            _selectTest(item, item.category?.id ?? _uncategorizedId),
+        onSelectVersion: (version) {
+          setState(() => _selectedVersionId = version.id);
+          _loadFields(version.id);
+        },
+        onEditCategory: category == null
+            ? () {}
+            : () => _editCategory(category),
+        onDeleteCategory: category == null
+            ? () {}
+            : () => _deleteCategory(category),
+        onAddTest: () => _addTest(category),
+        onEditTest: test == null ? () {} : () => _editTest(test),
+        onDeleteTest: test == null ? () {} : () => _deleteTest(test),
+        onCreateVersion: _createVersion,
+        onRetry: () {
+          final testId = _selectedTestId;
+          final versionId = _selectedVersionId;
+          if (testId != null) _loadVersions(testId, force: true);
+          if (versionId != null) _loadFields(versionId, force: true);
+        },
+        onAddField: _addField,
+        onEditField: _editField,
+        onDeleteField: _deleteField,
+        onMoveField: _moveField,
       ),
     );
-  }
 
-  void _confirmDeleteAntibiotic(
-    BuildContext context,
-    WidgetRef ref,
-    LabAntibiotic abx,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete antibiotic'),
-        content: Text(
-          'Delete "${abx.name}"? If it is used on AST reports, deactivate it instead.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            onPressed: () async {
-              try {
-                await ref.read(labApiServiceProvider).deleteAntibiotic(abx.id);
-                if (ctx.mounted) Navigator.pop(ctx);
-                ref.invalidate(labAntibioticsFutureProvider);
-              } catch (e) {
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  final msg = e.toString().contains('409')
-                      ? 'Cannot delete — antibiotic is referenced by AST results. Deactivate it instead.'
-                      : e.toString();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(msg)),
-                  );
-                }
-              }
-            },
-            child: const Text('Delete'),
-          ),
+    if (split) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(flex: 5, child: tree),
+          const SizedBox(width: 10),
+          Expanded(flex: 6, child: detail),
         ],
-      ),
-    );
-  }
-}
-
-class _AstResultOptionsTab extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(labAstResultOptionsFutureProvider);
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(err.toString(), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () =>
-                    ref.invalidate(labAstResultOptionsFutureProvider),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      data: (response) {
-        final list = List<LabAstResultOption>.from(response.data)
-          ..sort((a, b) {
-            final pc = a.position.compareTo(b.position);
-            return pc != 0 ? pc : a.label.compareTo(b.label);
-          });
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: list.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Susceptibility values for AST result entry (e.g. S, I, R, NT).',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () => _showCreateOption(context, ref),
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Add AST option'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-            final opt = list[index - 1];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: opt.isActive
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Text(
-                    (opt.code ?? opt.label).substring(
-                      0,
-                      (opt.code ?? opt.label).length.clamp(0, 2),
-                    ),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: opt.isActive
-                          ? Theme.of(context).colorScheme.onPrimaryContainer
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                title: Text(opt.label),
-                subtitle: Text(
-                  [
-                    if (opt.code != null && opt.code!.isNotEmpty) opt.code!,
-                    'Position ${opt.position}',
-                    if (!opt.isActive) 'Inactive',
-                  ].join(' · '),
-                ),
-                trailing: PopupMenuButton<String>(
-                  onSelected: (action) {
-                    if (action == 'edit') {
-                      _showEditOption(context, ref, opt);
-                    } else if (action == 'delete') {
-                      _confirmDeleteOption(context, ref, opt);
-                    }
-                  },
-                  itemBuilder: (ctx) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showCreateOption(BuildContext context, WidgetRef ref) {
-    _showOptionDialog(context, ref, title: 'New AST result option');
-  }
-
-  void _showEditOption(
-    BuildContext context,
-    WidgetRef ref,
-    LabAstResultOption opt,
-  ) {
-    _showOptionDialog(context, ref, title: 'Edit AST result option', existing: opt);
-  }
-
-  void _showOptionDialog(
-    BuildContext context,
-    WidgetRef ref, {
-    required String title,
-    LabAstResultOption? existing,
-  }) {
-    final labelController = TextEditingController(text: existing?.label ?? '');
-    final codeController = TextEditingController(text: existing?.code ?? '');
-    final positionController = TextEditingController(
-      text: (existing?.position ?? 0).toString(),
-    );
-    var isActive = existing?.isActive ?? true;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: labelController,
-                  decoration: const InputDecoration(
-                    labelText: 'Label',
-                    hintText: 'e.g. Sensitive',
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: codeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Code (optional)',
-                    hintText: 'e.g. S',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: positionController,
-                  decoration: const InputDecoration(labelText: 'Position'),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Active'),
-                  subtitle: const Text(
-                    'Deactivate instead of delete when used on reports',
-                  ),
-                  value: isActive,
-                  onChanged: (v) => setDialogState(() => isActive = v),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final label = labelController.text.trim();
-                if (label.isEmpty) return;
-                final position =
-                    int.tryParse(positionController.text.trim()) ?? 0;
-                final code = codeController.text.trim();
-                try {
-                  final api = ref.read(labApiServiceProvider);
-                  if (existing == null) {
-                    await api.createAstResultOption(
-                      label: label,
-                      code: code.isEmpty ? null : code,
-                      isActive: isActive,
-                      position: position,
-                    );
-                  } else {
-                    await api.updateAstResultOption(
-                      existing.id,
-                      label: label,
-                      code: code.isEmpty ? '' : code,
-                      isActive: isActive,
-                      position: position,
-                    );
-                  }
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  ref.invalidate(labAstResultOptionsFutureProvider);
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
-                  }
-                }
-              },
-              child: Text(existing == null ? 'Create' : 'Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteOption(
-    BuildContext context,
-    WidgetRef ref,
-    LabAstResultOption opt,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete AST option'),
-        content: Text(
-          'Delete "${opt.label}"? If it is used on AST reports, deactivate it instead.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            onPressed: () async {
-              try {
-                await ref
-                    .read(labApiServiceProvider)
-                    .deleteAstResultOption(opt.id);
-                if (ctx.mounted) Navigator.pop(ctx);
-                ref.invalidate(labAstResultOptionsFutureProvider);
-              } catch (e) {
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  final msg = e.toString().contains('409')
-                      ? 'Cannot delete — option is referenced by AST results. Deactivate it instead.'
-                      : e.toString();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(msg)),
-                  );
-                }
-              }
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
+    if (_showDetail && test != null) return detail;
+    return tree;
   }
 }
