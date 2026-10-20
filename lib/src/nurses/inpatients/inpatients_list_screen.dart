@@ -13,6 +13,7 @@ import 'package:helty/src/nurses/inpatients/widgets/ward_census_header.dart';
 import 'package:helty/src/nurses/inpatients/widgets/ward_census_sidebar.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_service.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 @RoutePage()
@@ -77,7 +78,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       _isLoadingWards = true;
     });
     try {
-      final fetched = await _wardService.fetchWards();
+      final fetched = await _wardService.fetchCensusWards();
       final wards = fetched
           .where((w) => !_wardExcludedFromInpatientList(w))
           .toList(growable: false);
@@ -119,6 +120,13 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       setState(() {
         _selectedWard = ward;
         _rows = ward.inpatients;
+        _wards = [
+          for (final existing in _wards)
+            if (existing.id == ward.id)
+              existing.copyWith(activePatientCount: ward.inpatients.length)
+            else
+              existing,
+        ];
       });
       _applySearch();
     } catch (e) {
@@ -230,7 +238,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
           final useCards = compact;
 
           final header = WardCensusHeader(compact: compact);
-          final kpis = InpatientKpiRow(
+          final kpis = _CensusKpiCarousel(
             tiles: [
               InpatientKpiTile(
                 icon: Icons.groups_outlined,
@@ -280,6 +288,20 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
             },
             onRefresh: _loadWards,
             onAwaitingClearance: _openClearance,
+            below: showSideBySide
+                ? null
+                : WardCensusSidebar(
+                    wards: _wards,
+                    selectedWardId: _selectedWard?.id,
+                    onSelectWard: (w) => _loadWardDetails(w.id),
+                    onRefresh: () {
+                      _loadWards();
+                      _scrollToList();
+                    },
+                    onAwaitingClearance: _openClearance,
+                    loadingWards: _isLoadingWards,
+                    showQuickActions: false,
+                  ),
           );
 
           final mainColumn = Column(
@@ -327,6 +349,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
             onAwaitingClearance: _openClearance,
             loadingWards: _isLoadingWards,
             fillHeight: showSideBySide,
+            showQuickActions: showSideBySide,
           );
 
           if (showSideBySide) {
@@ -357,6 +380,111 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
   }
 }
 
+/// One row of ward stats. Narrow widths swipe one card at a time; wider
+/// widths page two at a time. All four stay in a single row when they fit,
+/// so the inpatient list keeps the vertical space.
+class _CensusKpiCarousel extends StatelessWidget {
+  const _CensusKpiCarousel({required this.tiles});
+
+  final List<Widget> tiles;
+
+  int _perPage(double width) {
+    if (tiles.length <= 1) return tiles.length;
+    if (width >= tiles.length * 210) return tiles.length;
+    if (width >= 560) return 2;
+    return 1;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final perPage = _perPage(width).clamp(1, tiles.length);
+        return _CensusKpiPager(
+          key: ValueKey(perPage),
+          tiles: tiles,
+          perPage: perPage,
+        );
+      },
+    );
+  }
+}
+
+class _CensusKpiPager extends StatefulWidget {
+  const _CensusKpiPager({
+    super.key,
+    required this.tiles,
+    required this.perPage,
+  });
+
+  final List<Widget> tiles;
+  final int perPage;
+
+  @override
+  State<_CensusKpiPager> createState() => _CensusKpiPagerState();
+}
+
+class _CensusKpiPagerState extends State<_CensusKpiPager> {
+  late final PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final pages = (widget.tiles.length / widget.perPage).ceil();
+    _controller = PageController(
+      viewportFraction: widget.perPage == 1 && pages > 1 ? 0.86 : 1,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  List<Widget> _pageTiles(int page) {
+    final start = page * widget.perPage;
+    final end = (start + widget.perPage).clamp(0, widget.tiles.length);
+    return widget.tiles.sublist(start, end);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = (widget.tiles.length / widget.perPage).ceil();
+    final peek = widget.perPage == 1 && pages > 1;
+
+    return SizedBox(
+      height: 72,
+      child: PageView.builder(
+        controller: _controller,
+        padEnds: false,
+        itemCount: pages,
+        itemBuilder: (context, index) {
+          final pageTiles = _pageTiles(index);
+          return Padding(
+            padding: EdgeInsets.only(right: peek ? 8 : 0),
+            child: Row(
+              children: [
+                for (var i = 0; i < widget.perPage; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(
+                    child: i < pageTiles.length
+                        ? pageTiles[i]
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _CensusFilterBar extends StatelessWidget {
   const _CensusFilterBar({
     required this.searchController,
@@ -367,6 +495,7 @@ class _CensusFilterBar extends StatelessWidget {
     required this.onWardChanged,
     required this.onRefresh,
     required this.onAwaitingClearance,
+    this.below,
   });
 
   final TextEditingController searchController;
@@ -377,6 +506,7 @@ class _CensusFilterBar extends StatelessWidget {
   final ValueChanged<String?> onWardChanged;
   final VoidCallback onRefresh;
   final VoidCallback onAwaitingClearance;
+  final Widget? below;
 
   InputDecoration _decoration(
     BuildContext context, {
@@ -499,7 +629,22 @@ class _CensusFilterBar extends StatelessWidget {
     final extras = Tooltip(
       message: 'More filters',
       child: InkWell(
-        onTap: () => _openExtras(context),
+        onTap: () {
+          if (heltyUseSlideFilters(context)) {
+            showHeltySlidePanel(
+              context: context,
+              body: compact ? ward : null,
+              quickActions: wardCensusSlideActions(
+                context,
+                onRefresh: onRefresh,
+                onAwaitingClearance: onAwaitingClearance,
+              ),
+              below: below,
+            );
+            return;
+          }
+          _openExtras(context);
+        },
         borderRadius: BorderRadius.circular(8),
         child: const HeltySolidIcon(
           icon: Icons.tune,

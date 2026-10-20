@@ -398,6 +398,7 @@ class _DoctorOngoingEncountersScreenState
       onOpenWalkIn: () => context.router.push(const DoctorWalkInQueueRoute()),
       onViewAllNotes: () => showOngoingEncountersNotesDialog(context, _notes),
       fillHeight: fillHeight,
+      showQuickActions: fillHeight,
     );
   }
 
@@ -458,6 +459,19 @@ class _DoctorOngoingEncountersScreenState
             compact: compact,
             fromDate: _fromDate,
             toDate: _toDate,
+            quickActions: showSideBySide
+                ? const []
+                : ongoingEncountersSlideActions(
+                    context,
+                    onRefresh: () => _loadEncounters(reset: true),
+                    onViewList: _scrollToList,
+                    onOpenCompleted: () => context.router.push(
+                      const DoctorCompletedEncountersRoute(),
+                    ),
+                    onOpenWalkIn: () =>
+                        context.router.push(const DoctorWalkInQueueRoute()),
+                  ),
+            below: showSideBySide ? null : _sidebar(),
           );
 
           final mainColumn = Column(
@@ -487,21 +501,7 @@ class _DoctorOngoingEncountersScreenState
           return LayoutBuilder(
             builder: (context, constraints) {
               final bounded = constraints.maxHeight.isFinite;
-              if (bounded) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: mainColumn),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 280,
-                      child: SingleChildScrollView(
-                        child: _sidebar(fillHeight: false),
-                      ),
-                    ),
-                  ],
-                );
-              }
+              if (bounded) return mainColumn;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -515,8 +515,6 @@ class _DoctorOngoingEncountersScreenState
                     height: compact ? 480 : 520,
                     child: _listPanel(useCards: useCards),
                   ),
-                  const SizedBox(height: 10),
-                  _sidebar(),
                 ],
               );
             },

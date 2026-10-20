@@ -514,6 +514,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
       ),
       statusCounts: _statusMix(orders),
       fillHeight: fillHeight,
+      showQuickActions: fillHeight,
     );
   }
 
@@ -569,6 +570,22 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
               onRefresh: _retryOrdersLoad,
               leading: compact ? _statusDropdown(context) : null,
             ),
+            quickActions: showSideBySide
+                ? const []
+                : labSlideActions(
+                    _quickActions(
+                      isLabManager: isLabManager,
+                      isSuperAdmin: isSuperAdmin,
+                    ),
+                  ),
+            below: showSideBySide
+                ? null
+                : _sidebar(
+                    orders: allOrders,
+                    isLabManager: isLabManager,
+                    isSuperAdmin: isSuperAdmin,
+                    fillHeight: false,
+                  ),
           );
 
           final mainColumn = Column(
@@ -613,26 +630,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
           return LayoutBuilder(
             builder: (context, constraints) {
               final bounded = constraints.maxHeight.isFinite;
-              if (bounded) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: mainColumn),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 280,
-                      child: SingleChildScrollView(
-                        child: _sidebar(
-                          orders: allOrders,
-                          isLabManager: isLabManager,
-                          isSuperAdmin: isSuperAdmin,
-                          fillHeight: false,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }
+              if (bounded) return mainColumn;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -650,13 +648,6 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
                       error: error,
                       useCards: compact,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  _sidebar(
-                    orders: allOrders,
-                    isLabManager: isLabManager,
-                    isSuperAdmin: isSuperAdmin,
-                    fillHeight: false,
                   ),
                 ],
               );

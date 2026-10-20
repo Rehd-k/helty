@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../helper/date.formatter.dart';
 import '../../helper/theme.dart';
+import '../../widgets/helty_slide_panel.dart';
 import '../../widgets/helty_surface.dart';
 import '../cmd_command_metrics.dart';
 import '../models/cmd_models.dart';
@@ -18,6 +19,7 @@ class CmdCommandSidebar extends StatelessWidget {
     required this.onAlerts,
     required this.onViewAllActivity,
     this.fillHeight = false,
+    this.showQuickActions = true,
   });
 
   final List<CmdAlertChip> alerts;
@@ -28,15 +30,18 @@ class CmdCommandSidebar extends StatelessWidget {
   final VoidCallback onAlerts;
   final VoidCallback onViewAllActivity;
   final bool fillHeight;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
-      onRefresh: onRefresh,
-      onHospitalOverview: onHospitalOverview,
-      onFinancialCommand: onFinancialCommand,
-      onAlerts: onAlerts,
-    );
+    final quick = showQuickActions
+        ? _QuickActionsCard(
+            onRefresh: onRefresh,
+            onHospitalOverview: onHospitalOverview,
+            onFinancialCommand: onFinancialCommand,
+            onAlerts: onAlerts,
+          )
+        : null;
     final alertsCard = _AlertsCard(alerts: alerts, expanded: fillHeight);
     final activityCard = _ActivityCard(
       activity: activity,
@@ -48,8 +53,7 @@ class CmdCommandSidebar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 12),
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
           alertsCard,
           const SizedBox(height: 12),
           activityCard,
@@ -60,14 +64,55 @@ class CmdCommandSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(flex: 3, child: alertsCard),
         const SizedBox(height: 12),
         Expanded(flex: 2, child: activityCard),
       ],
     );
   }
+}
+
+List<HeltySlideAction> cmdCommandSlideActions(
+  BuildContext context, {
+  required VoidCallback onRefresh,
+  required VoidCallback onHospitalOverview,
+  required VoidCallback onFinancialCommand,
+  required VoidCallback onAlerts,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    HeltySlideAction(
+      label: 'Refresh Dashboard',
+      icon: Icons.refresh,
+      colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+      onPressed: onRefresh,
+    ),
+    HeltySlideAction(
+      label: 'Hospital Overview',
+      icon: Icons.account_balance_outlined,
+      colors: [
+        CmdCommandMetrics.waitGreen,
+        Color.lerp(CmdCommandMetrics.waitGreen, cs.primary, 0.25)!,
+      ],
+      onPressed: onHospitalOverview,
+    ),
+    HeltySlideAction(
+      label: 'Financial Command',
+      icon: Icons.payments_outlined,
+      colors: [
+        CmdCommandMetrics.iconTeal,
+        Color.lerp(CmdCommandMetrics.iconTeal, cs.primary, 0.25)!,
+      ],
+      onPressed: onFinancialCommand,
+    ),
+    HeltySlideAction(
+      label: 'Alerts & Incidents',
+      icon: Icons.crisis_alert_outlined,
+      colors: [cs.tertiary, Color.lerp(cs.tertiary, cs.primary, 0.4)!],
+      onPressed: onAlerts,
+    ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

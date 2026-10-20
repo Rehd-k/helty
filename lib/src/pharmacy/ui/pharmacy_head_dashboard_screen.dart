@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/widgets/date.filter.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/auth_provider.dart';
@@ -359,9 +360,22 @@ class _PharmacyHeadDashboardScreenState
       const SizedBox(height: 12),
       _storeValuationList(theme, data.storeValuations),
       const SizedBox(height: 24),
-      _sectionHeader(theme, 'Quick actions'),
-      const SizedBox(height: 12),
-      _quickActions(theme, bp),
+      if (heltyUseSlideFilters(context))
+        Align(
+          alignment: Alignment.centerLeft,
+          child: HeltyMobileFiltersButton(
+            color: DepartmentColors.pharmacy,
+            onPressed: () => showHeltySlidePanel(
+              context: context,
+              quickActions: _headSlideActions(),
+            ),
+          ),
+        )
+      else ...[
+        _sectionHeader(theme, 'Quick actions'),
+        const SizedBox(height: 12),
+        _quickActions(theme, bp),
+      ],
       if (_error != null) ...[
         const SizedBox(height: 12),
         _errorCard(_error!),
@@ -778,6 +792,33 @@ class _PharmacyHeadDashboardScreenState
         ),
       ],
     );
+  }
+
+  List<HeltySlideAction> _headSlideActions() {
+    final cs = Theme.of(context).colorScheme;
+    final colors = [
+      DepartmentColors.pharmacy,
+      Color.lerp(DepartmentColors.pharmacy, cs.primary, 0.25)!,
+    ];
+    HeltySlideAction action(String label, IconData icon, PageRouteInfo route) {
+      return HeltySlideAction(
+        label: label,
+        icon: icon,
+        colors: colors,
+        onPressed: () => context.router.push(route),
+      );
+    }
+
+    return [
+      action('Reports hub', Icons.assessment_rounded, const PharmacyReportsHubRoute()),
+      action('Sales breakdown', Icons.pie_chart_outline_rounded, PharmacySalesBreakdownRoute()),
+      action('Inventory valuation', Icons.warehouse_rounded, PharmacyInventoryValuationRoute()),
+      action('Dispense history', Icons.receipt_long_outlined, DispenseHistoryRoute()),
+      action('Supply history', Icons.list_alt_outlined, const SupplyHistoryRoute()),
+      action('Stock transfer', Icons.move_to_inbox_outlined, const StockTransferRoute()),
+      action('Create requisition', Icons.note_add_outlined, const CreateRequisitionRoute()),
+      action('Medicine inventory', Icons.inventory_2_outlined, const MedicineInventoryRoute()),
+    ];
   }
 
   Widget _quickActions(ThemeData theme, AppBreakpoints bp) {

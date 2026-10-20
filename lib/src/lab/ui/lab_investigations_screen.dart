@@ -576,6 +576,12 @@ class _LabInvestigationsScreenState
               compact: compact,
               categoriesAsync: categoriesAsync,
             ),
+            quickActions: showSideBySide
+                ? const []
+                : labSlideActions(_investigationActions()),
+            below: showSideBySide
+                ? null
+                : _sidebar(summary: summary, fillHeight: false),
           );
 
           final mainColumn = Column(
@@ -642,19 +648,7 @@ class _LabInvestigationsScreenState
             );
           }
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: mainColumn),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 280,
-                child: SingleChildScrollView(
-                  child: _sidebar(summary: summary, fillHeight: false),
-                ),
-              ),
-            ],
-          );
+          return mainColumn;
         },
       ),
     );
@@ -978,12 +972,9 @@ class _LabInvestigationsScreenState
     );
   }
 
-  Widget _sidebar({
-    required InvestigationSummary? summary,
-    required bool fillHeight,
-  }) {
+  List<LabQuickAction> _investigationActions() {
     final cs = Theme.of(context).colorScheme;
-    final actions = [
+    return [
       LabQuickAction(
         label: 'Print list',
         icon: Icons.print_outlined,
@@ -1015,6 +1006,13 @@ class _LabInvestigationsScreenState
         onPressed: _refresh,
       ),
     ];
+  }
+
+  Widget _sidebar({
+    required InvestigationSummary? summary,
+    required bool fillHeight,
+  }) {
+    final actions = _investigationActions();
     final mix = <LabStatusCount>[
       if (summary != null)
         for (final row in summary.byTestName.take(12))
@@ -1029,6 +1027,7 @@ class _LabInvestigationsScreenState
       actions: actions,
       statusCounts: mix,
       fillHeight: fillHeight,
+      showQuickActions: fillHeight,
       mixTitle: 'By test',
       mixEmptyLabel: 'No tests in this range',
     );

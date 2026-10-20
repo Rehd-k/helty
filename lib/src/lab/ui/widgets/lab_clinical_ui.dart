@@ -7,6 +7,7 @@ import '../../../helper/app_timezone.dart';
 import '../../../helper/theme.dart';
 import '../../../lab/models/lab_models.dart';
 import '../../../widgets/date.filter.dart';
+import '../../../widgets/helty_slide_panel.dart';
 import '../../../widgets/helty_surface.dart';
 
 abstract final class LabClinicalUi {
@@ -371,6 +372,8 @@ class LabFilterBar extends StatelessWidget {
     required this.onSearchSubmitted,
     required this.filterMenuBody,
     this.primaryFilter,
+    this.quickActions = const [],
+    this.below,
   });
 
   final TextEditingController searchController;
@@ -379,6 +382,8 @@ class LabFilterBar extends StatelessWidget {
   final ValueChanged<String> onSearchSubmitted;
   final Widget filterMenuBody;
   final Widget? primaryFilter;
+  final List<HeltySlideAction> quickActions;
+  final Widget? below;
 
   InputDecoration _decoration(
     BuildContext context, {
@@ -438,7 +443,12 @@ class LabFilterBar extends StatelessWidget {
 
     final filterButton = IconButton(
       tooltip: 'Filters',
-      onPressed: () => showLabFilterMenu(context, filterMenuBody),
+      onPressed: () => showLabFilterMenu(
+        context,
+        filterMenuBody,
+        quickActions: quickActions,
+        below: below,
+      ),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       icon: const HeltySolidIcon(
@@ -472,7 +482,32 @@ class LabFilterBar extends StatelessWidget {
   }
 }
 
-Future<void> showLabFilterMenu(BuildContext context, Widget body) {
+List<HeltySlideAction> labSlideActions(List<LabQuickAction> actions) {
+  return [
+    for (final action in actions)
+      HeltySlideAction(
+        label: action.label,
+        icon: action.icon,
+        colors: action.colors,
+        onPressed: action.onPressed,
+      ),
+  ];
+}
+
+Future<void> showLabFilterMenu(
+  BuildContext context,
+  Widget body, {
+  List<HeltySlideAction> quickActions = const [],
+  Widget? below,
+}) {
+  if (heltyUseSlideFilters(context)) {
+    return showHeltySlidePanel(
+      context: context,
+      body: body,
+      quickActions: quickActions,
+      below: below,
+    );
+  }
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.18),
@@ -665,6 +700,7 @@ class LabSidebar extends StatelessWidget {
     required this.actions,
     required this.statusCounts,
     this.fillHeight = false,
+    this.showQuickActions = true,
     this.mixTitle = 'Status mix',
     this.mixEmptyLabel = 'No orders in this range',
   });
@@ -672,12 +708,15 @@ class LabSidebar extends StatelessWidget {
   final List<LabQuickAction> actions;
   final List<LabStatusCount> statusCounts;
   final bool fillHeight;
+  final bool showQuickActions;
   final String mixTitle;
   final String mixEmptyLabel;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _LabQuickActionsCard(actions: actions);
+    final quick = showQuickActions
+        ? _LabQuickActionsCard(actions: actions)
+        : null;
     final mix = _LabStatusMixCard(
       counts: statusCounts,
       expanded: fillHeight,
@@ -688,15 +727,17 @@ class LabSidebar extends StatelessWidget {
     if (!fillHeight) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [quick, const SizedBox(height: 12), mix],
+        children: [
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
+          mix,
+        ],
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(child: mix),
       ],
     );

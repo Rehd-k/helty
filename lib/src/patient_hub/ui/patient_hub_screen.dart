@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/responsive.dart';
 
 import '../../helper/theme.dart';
+import '../../widgets/helty_slide_panel.dart';
 import '../models/patient_hub_models.dart';
 import '../patient_hub_metrics.dart';
 import '../providers/patient_hub_providers.dart';
@@ -88,6 +89,18 @@ class _PatientHubScreenState extends ConsumerState<PatientHubScreen> {
                     final showSideBySide =
                         width >= PatientHubMetrics.sidebarBreakpoint;
 
+                    Widget sidebar({required bool fillHeight}) {
+                      return HubSidebar(
+                        patient: header.patient,
+                        summary: header.summary,
+                        fullProfile: patient,
+                        onSearch: () => context.router.pop(),
+                        onSelectTab: (i) => tabsRouter.setActiveIndex(i),
+                        fillHeight: fillHeight,
+                        showQuickActions: fillHeight,
+                      );
+                    }
+
                     final pageHeader = HubPageHeader(
                       title: header.patient.displayName,
                       subtitle: [
@@ -96,21 +109,40 @@ class _PatientHubScreenState extends ConsumerState<PatientHubScreen> {
                         'Patient Hub',
                       ].join(' · '),
                       compact: compact,
-                      trailing: IconButton(
-                        tooltip: 'Back to search',
-                        onPressed: () => context.router.pop(),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 36,
-                          minHeight: 36,
-                        ),
-                        icon: const HubSolidIcon(
-                          icon: Icons.search,
-                          color: PatientHubMetrics.iconIndigo,
-                          size: 32,
-                          iconSize: 16,
-                          radius: 8,
-                        ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!showSideBySide)
+                            HeltyMobileFiltersButton(
+                              color: PatientHubMetrics.iconPurple,
+                              onPressed: () => showHeltySlidePanel(
+                                context: context,
+                                quickActions: hubSlideActions(
+                                  context,
+                                  onSearch: () => context.router.pop(),
+                                  onSelectTab: (i) =>
+                                      tabsRouter.setActiveIndex(i),
+                                ),
+                                below: sidebar(fillHeight: false),
+                              ),
+                            ),
+                          IconButton(
+                            tooltip: 'Back to search',
+                            onPressed: () => context.router.pop(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                            icon: const HubSolidIcon(
+                              icon: Icons.search,
+                              color: PatientHubMetrics.iconIndigo,
+                              size: 32,
+                              iconSize: 16,
+                              radius: 8,
+                            ),
+                          ),
+                        ],
                       ),
                     );
 
@@ -143,17 +175,6 @@ class _PatientHubScreenState extends ConsumerState<PatientHubScreen> {
                       ],
                     );
 
-                    Widget sidebar({required bool fillHeight}) {
-                      return HubSidebar(
-                        patient: header.patient,
-                        summary: header.summary,
-                        fullProfile: patient,
-                        onSearch: () => context.router.pop(),
-                        onSelectTab: (i) => tabsRouter.setActiveIndex(i),
-                        fillHeight: fillHeight,
-                      );
-                    }
-
                     if (showSideBySide) {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -168,27 +189,7 @@ class _PatientHubScreenState extends ConsumerState<PatientHubScreen> {
                       );
                     }
 
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final bounded = constraints.maxHeight.isFinite;
-                        if (bounded) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(child: mainColumn),
-                              const SizedBox(height: 10),
-                              SizedBox(
-                                height: 220,
-                                child: SingleChildScrollView(
-                                  child: sidebar(fillHeight: false),
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-                        return mainColumn;
-                      },
-                    );
+                    return mainColumn;
                   },
                 ),
               );

@@ -34,6 +34,36 @@ class WardService {
         .toList();
   }
 
+  /// Ward list for the census sidebar. Uses `activePatientCount` from the
+  /// wards API, and falls back to each ward's active admissions when an older
+  /// API omits that field.
+  Future<List<Ward>> fetchCensusWards() async {
+    final resp = await _dio.get('/wards');
+    final data = resp.data;
+    final list = data is List
+        ? data
+        : (data is Map<String, dynamic>
+              ? (data['wards'] as List? ?? data['data'] as List? ?? const [])
+              : const []);
+    final maps = list.whereType<Map<String, dynamic>>().toList();
+    final wards = maps.map(Ward.fromJson).toList();
+    final countsIncluded =
+        maps.isNotEmpty &&
+        maps.every((ward) => ward.containsKey('activePatientCount'));
+    if (countsIncluded) return wards;
+
+    return Future.wait(
+      wards.map((ward) async {
+        try {
+          final full = await getWardById(ward.id);
+          return ward.copyWith(activePatientCount: full.inpatients.length);
+        } catch (_) {
+          return ward.copyWith(activePatientCount: 0);
+        }
+      }),
+    );
+  }
+
   Future<Ward> getWardById(String id) async {
     final resp = await _dio.get('/wards/$id');
     return Ward.fromJson(resp.data as Map<String, dynamic>);

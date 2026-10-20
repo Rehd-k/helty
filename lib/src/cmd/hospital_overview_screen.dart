@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 import 'cmd_overview_metrics.dart';
@@ -252,6 +253,23 @@ class _OverviewBody extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onRefresh;
 
+  Widget? _mobileRail(BuildContext context) {
+    if (showSideBySide) return null;
+    return _sidebar(context, fillHeight: false);
+  }
+
+  List<HeltySlideAction> _mobileActions(BuildContext context) {
+    if (showSideBySide) return const [];
+    return cmdOverviewSlideActions(
+      context,
+      onRefresh: onRefresh,
+      onCommandCenter: () => context.router.push(const CMDDashboardRoute()),
+      onStaffOversight: () =>
+          context.router.push(const CMDStaffOversightRoute()),
+      onAlerts: () => context.router.push(const CMDAlertsIncidentsRoute()),
+    );
+  }
+
   Widget _sidebar(BuildContext context, {required bool fillHeight}) {
     return CmdOverviewSidebar(
       flow: data.flow,
@@ -270,6 +288,7 @@ class _OverviewBody extends StatelessWidget {
         waitTimes: data.waitTimes,
       ),
       fillHeight: fillHeight,
+      showQuickActions: fillHeight,
     );
   }
 
@@ -301,7 +320,7 @@ class _OverviewBody extends StatelessWidget {
     );
   }
 
-  Widget _mainColumn({required bool useCards}) {
+  Widget _mainColumn(BuildContext context, {required bool useCards}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -319,6 +338,8 @@ class _OverviewBody extends StatelessWidget {
           sortValue: sortValue,
           onSortChanged: onSortChanged,
           compact: compact,
+          quickActions: _mobileActions(context),
+          below: _mobileRail(context),
         ),
         const SizedBox(height: 10),
         Expanded(child: _queuePanel(useCards: useCards)),
@@ -333,7 +354,7 @@ class _OverviewBody extends StatelessWidget {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(flex: 9, child: _mainColumn(useCards: useCards)),
+          Expanded(flex: 9, child: _mainColumn(context, useCards: useCards)),
           const SizedBox(width: 12),
           Expanded(flex: 3, child: _sidebar(context, fillHeight: true)),
         ],
@@ -344,19 +365,7 @@ class _OverviewBody extends StatelessWidget {
       builder: (context, constraints) {
         final bounded = constraints.maxHeight.isFinite;
         if (bounded) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: _mainColumn(useCards: useCards)),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 280,
-                child: SingleChildScrollView(
-                  child: _sidebar(context, fillHeight: false),
-                ),
-              ),
-            ],
-          );
+          return _mainColumn(context, useCards: useCards);
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -375,14 +384,14 @@ class _OverviewBody extends StatelessWidget {
               sortValue: sortValue,
               onSortChanged: onSortChanged,
               compact: compact,
+              quickActions: _mobileActions(context),
+          below: _mobileRail(context),
             ),
             const SizedBox(height: 10),
             SizedBox(
               height: compact ? 480 : 520,
               child: _queuePanel(useCards: useCards),
             ),
-            const SizedBox(height: 10),
-            _sidebar(context, fillHeight: false),
           ],
         );
       },

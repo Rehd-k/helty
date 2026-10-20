@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../helper/theme.dart';
+import '../../widgets/helty_slide_panel.dart';
 import '../../widgets/helty_surface.dart';
 import '../cmd_overview_metrics.dart';
 import '../models/cmd_models.dart';
@@ -19,6 +20,7 @@ class CmdOverviewSidebar extends StatelessWidget {
     required this.onAlerts,
     required this.onViewSummaries,
     this.fillHeight = false,
+    this.showQuickActions = true,
   });
 
   final List<CmdFlowStageMetric> flow;
@@ -31,15 +33,18 @@ class CmdOverviewSidebar extends StatelessWidget {
   final VoidCallback onAlerts;
   final VoidCallback onViewSummaries;
   final bool fillHeight;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
-      onRefresh: onRefresh,
-      onCommandCenter: onCommandCenter,
-      onStaffOversight: onStaffOversight,
-      onAlerts: onAlerts,
-    );
+    final quick = showQuickActions
+        ? _QuickActionsCard(
+            onRefresh: onRefresh,
+            onCommandCenter: onCommandCenter,
+            onStaffOversight: onStaffOversight,
+            onAlerts: onAlerts,
+          )
+        : null;
     final flowCard = _FlowCard(flow: flow, expanded: fillHeight);
     final waitCard = _WaitCard(
       waitTimes: waitTimes,
@@ -53,8 +58,7 @@ class CmdOverviewSidebar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 12),
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
           flowCard,
           const SizedBox(height: 12),
           waitCard,
@@ -65,14 +69,55 @@ class CmdOverviewSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(flex: 3, child: flowCard),
         const SizedBox(height: 12),
         Expanded(flex: 2, child: waitCard),
       ],
     );
   }
+}
+
+List<HeltySlideAction> cmdOverviewSlideActions(
+  BuildContext context, {
+  required VoidCallback onRefresh,
+  required VoidCallback onCommandCenter,
+  required VoidCallback onStaffOversight,
+  required VoidCallback onAlerts,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    HeltySlideAction(
+      label: 'Refresh Overview',
+      icon: Icons.refresh,
+      colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+      onPressed: onRefresh,
+    ),
+    HeltySlideAction(
+      label: 'Command Center',
+      icon: Icons.hub_outlined,
+      colors: [
+        CmdOverviewMetrics.waitGreen,
+        Color.lerp(CmdOverviewMetrics.waitGreen, cs.primary, 0.25)!,
+      ],
+      onPressed: onCommandCenter,
+    ),
+    HeltySlideAction(
+      label: 'Staff Oversight',
+      icon: Icons.groups_outlined,
+      colors: [
+        CmdOverviewMetrics.iconTeal,
+        Color.lerp(CmdOverviewMetrics.iconTeal, cs.primary, 0.25)!,
+      ],
+      onPressed: onStaffOversight,
+    ),
+    HeltySlideAction(
+      label: 'Alerts & Incidents',
+      icon: Icons.crisis_alert_outlined,
+      colors: [cs.tertiary, Color.lerp(cs.tertiary, cs.primary, 0.4)!],
+      onPressed: onAlerts,
+    ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

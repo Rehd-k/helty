@@ -43,7 +43,6 @@ class _WardCensusHeaderState extends State<WardCensusHeader> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final time = DateFormat('hh:mm a').format(_now);
-    final date = DateFormat('EEE, MMM d, yyyy').format(_now);
 
     final title = Row(
       children: [
@@ -97,24 +96,11 @@ class _WardCensusHeaderState extends State<WardCensusHeader> {
             ),
           ),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                time,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                date,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontSize: 10,
-                ),
-              ),
-            ],
+          Text(
+            time,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),

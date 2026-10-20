@@ -1205,32 +1205,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     }
   }
 
-  Future<UncoverHmoResult?> _confirmDiscountReverse() async {
-    final reasonCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
+  Future<UncoverHmoResult?> _confirmDiscountReverse() {
+    return showDialog<UncoverHmoResult>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reverse coverage'),
-        content: TextField(
-          controller: reasonCtrl,
-          decoration: const InputDecoration(labelText: 'Reason (optional)'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reverse'),
-          ),
-        ],
-      ),
+      builder: (ctx) => const _ReverseCoverageDialog(),
     );
-    final reason = reasonCtrl.text.trim();
-    reasonCtrl.dispose();
-    if (ok != true) return null;
-    return UncoverHmoResult(reason: reason.isEmpty ? null : reason);
   }
 
   List<PopupMenuEntry<String>> _lineRefundMenuEntries(BillingInvoiceItem line) {
@@ -3269,6 +3248,50 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
 // ==========================================
 // Add Other Bills modal (services from backend)
 // ==========================================
+
+class _ReverseCoverageDialog extends StatefulWidget {
+  const _ReverseCoverageDialog();
+
+  @override
+  State<_ReverseCoverageDialog> createState() => _ReverseCoverageDialogState();
+}
+
+class _ReverseCoverageDialogState extends State<_ReverseCoverageDialog> {
+  final _reasonCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reverse coverage'),
+      content: TextField(
+        controller: _reasonCtrl,
+        decoration: const InputDecoration(labelText: 'Reason (optional)'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final reason = _reasonCtrl.text.trim();
+            Navigator.pop(
+              context,
+              UncoverHmoResult(reason: reason.isEmpty ? null : reason),
+            );
+          },
+          child: const Text('Reverse'),
+        ),
+      ],
+    );
+  }
+}
 
 class _AddOtherBillsSheet extends ConsumerStatefulWidget {
   const _AddOtherBillsSheet({

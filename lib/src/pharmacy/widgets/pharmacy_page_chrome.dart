@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:helty/src/helper/theme.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 /// Shared pharmacy page chrome. Matches the walk-in queue without a live clock.
@@ -269,7 +270,17 @@ InputDecoration pharmacyFieldDecoration(
 Future<void> showPharmacyFilterDialog({
   required BuildContext context,
   required WidgetBuilder body,
+  List<HeltySlideAction> quickActions = const [],
+  Widget? below,
 }) {
+  if (heltyUseSlideFilters(context)) {
+    return showHeltySlidePanel(
+      context: context,
+      bodyBuilder: body,
+      quickActions: quickActions,
+      below: below,
+    );
+  }
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.18),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 import 'cmd_oversight_metrics.dart';
@@ -252,6 +253,22 @@ class _OversightBody extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onRefresh;
 
+  Widget? _mobileRail(BuildContext context) {
+    if (showSideBySide) return null;
+    return _sidebar(context, fillHeight: false);
+  }
+
+  List<HeltySlideAction> _mobileActions(BuildContext context) {
+    if (showSideBySide) return const [];
+    return cmdOversightSlideActions(
+      context,
+      onRefresh: onRefresh,
+      onCommandCenter: () => _openCommandCenter(context),
+      onAlerts: () => _openAlerts(context),
+      onHospitalOverview: () => _openOverview(context),
+    );
+  }
+
   void _openCommandCenter(BuildContext context) {
     context.router.push(const CMDDashboardRoute());
   }
@@ -275,6 +292,7 @@ class _OversightBody extends StatelessWidget {
       onViewAllPerformance: () =>
           showCmdOversightPerformanceDialog(context, data.performance),
       fillHeight: fillHeight,
+      showQuickActions: fillHeight,
     );
   }
 
@@ -324,6 +342,8 @@ class _OversightBody extends StatelessWidget {
           largestGapFirst: largestGapFirst,
           onLargestGapFirstChanged: onLargestGapFirstChanged,
           compact: compact,
+          quickActions: _mobileActions(context),
+          below: _mobileRail(context),
         ),
         const SizedBox(height: 10),
         Expanded(child: _queuePanel(useCards: useCards)),
@@ -349,19 +369,7 @@ class _OversightBody extends StatelessWidget {
       builder: (context, constraints) {
         final bounded = constraints.maxHeight.isFinite;
         if (bounded) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: _mainColumn(context, useCards: useCards)),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 280,
-                child: SingleChildScrollView(
-                  child: _sidebar(context, fillHeight: false),
-                ),
-              ),
-            ],
-          );
+          return _mainColumn(context, useCards: useCards);
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -380,14 +388,14 @@ class _OversightBody extends StatelessWidget {
               largestGapFirst: largestGapFirst,
               onLargestGapFirstChanged: onLargestGapFirstChanged,
               compact: compact,
+              quickActions: _mobileActions(context),
+          below: _mobileRail(context),
             ),
             const SizedBox(height: 10),
             SizedBox(
               height: compact ? 480 : 520,
               child: _queuePanel(useCards: useCards),
             ),
-            const SizedBox(height: 10),
-            _sidebar(context, fillHeight: false),
           ],
         );
       },

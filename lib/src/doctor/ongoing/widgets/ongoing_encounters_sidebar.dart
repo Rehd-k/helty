@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../helper/date.formatter.dart';
 import '../../../helper/theme.dart';
+import '../../../widgets/helty_slide_panel.dart';
 import '../../../widgets/helty_surface.dart';
 import '../ongoing_encounters_metrics.dart';
 
@@ -17,6 +18,7 @@ class OngoingEncountersSidebar extends StatelessWidget {
     required this.onOpenWalkIn,
     required this.onViewAllNotes,
     this.fillHeight = false,
+    this.showQuickActions = true,
   });
 
   final List<OngoingDoctorCount> doctorCounts;
@@ -27,15 +29,18 @@ class OngoingEncountersSidebar extends StatelessWidget {
   final VoidCallback onOpenWalkIn;
   final VoidCallback onViewAllNotes;
   final bool fillHeight;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
+    final quick = showQuickActions
+        ? _QuickActionsCard(
       onRefresh: onRefresh,
       onViewList: onViewList,
       onOpenCompleted: onOpenCompleted,
-      onOpenWalkIn: onOpenWalkIn,
-    );
+            onOpenWalkIn: onOpenWalkIn,
+          )
+        : null;
     final doctors = _DoctorCountsCard(
       doctorCounts: doctorCounts,
       expanded: fillHeight,
@@ -50,8 +55,7 @@ class OngoingEncountersSidebar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 12),
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
           doctors,
           const SizedBox(height: 12),
           notesCard,
@@ -62,14 +66,55 @@ class OngoingEncountersSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(flex: 3, child: doctors),
         const SizedBox(height: 12),
         Expanded(flex: 2, child: notesCard),
       ],
     );
   }
+}
+
+List<HeltySlideAction> ongoingEncountersSlideActions(
+  BuildContext context, {
+  required VoidCallback onRefresh,
+  required VoidCallback onViewList,
+  required VoidCallback onOpenCompleted,
+  required VoidCallback onOpenWalkIn,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    HeltySlideAction(
+      label: 'Refresh List',
+      icon: Icons.refresh,
+      colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+      onPressed: onRefresh,
+    ),
+    HeltySlideAction(
+      label: 'View List',
+      icon: Icons.list_alt_outlined,
+      colors: [
+        OngoingEncountersMetrics.waitGreen,
+        Color.lerp(OngoingEncountersMetrics.waitGreen, cs.primary, 0.25)!,
+      ],
+      onPressed: onViewList,
+    ),
+    HeltySlideAction(
+      label: 'Completed Encounters',
+      icon: Icons.check_circle_outline,
+      colors: [
+        OngoingEncountersMetrics.iconTeal,
+        Color.lerp(OngoingEncountersMetrics.iconTeal, cs.primary, 0.25)!,
+      ],
+      onPressed: onOpenCompleted,
+    ),
+    HeltySlideAction(
+      label: 'Walk-in Queue',
+      icon: Icons.groups_outlined,
+      colors: [cs.tertiary, Color.lerp(cs.tertiary, cs.primary, 0.4)!],
+      onPressed: onOpenWalkIn,
+    ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

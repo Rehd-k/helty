@@ -17,6 +17,7 @@ import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/medication_order_service.dart';
 import 'package:helty/src/services/medication_request_service.dart';
 import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 /// Walk-in accent tiles. The page header uses [DepartmentColors.pharmacy].
@@ -580,7 +581,123 @@ class _MedicationRequestsScreenState
     });
   }
 
+  List<HeltySlideAction> _slideActions() {
+    final cs = Theme.of(context).colorScheme;
+    final selectedCount = _selectedIds.length;
+    final allSelected =
+        _requests.isNotEmpty && selectedCount == _requests.length;
+    final billLabel = selectedCount == 0
+        ? 'Bill selected'
+        : 'Bill $selectedCount request${selectedCount == 1 ? '' : 's'}';
+    return [
+      HeltySlideAction(
+        label: _billing ? 'Billing…' : billLabel,
+        icon: Icons.receipt_long_outlined,
+        colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+        onPressed: _selectedIds.isNotEmpty && !_billing ? _billSelected : null,
+      ),
+      HeltySlideAction(
+        label: 'Refresh queue',
+        icon: Icons.refresh,
+        colors: [_Accent.green, Color.lerp(_Accent.green, cs.primary, 0.25)!],
+        onPressed: !_loading && !_billing ? () => _load(reset: true) : null,
+      ),
+      HeltySlideAction(
+        label: allSelected ? 'Clear selection' : 'Select all',
+        icon: allSelected ? Icons.deselect_outlined : Icons.select_all_outlined,
+        colors: [_Accent.amber, Color.lerp(_Accent.amber, cs.error, 0.15)!],
+        onPressed: _requests.isNotEmpty && !_loading && !_billing
+            ? () => _toggleSelectAll(!allSelected)
+            : null,
+      ),
+    ];
+  }
+
   Future<void> _openFilters({required bool compact}) async {
+    if (heltyUseSlideFilters(context)) {
+      final allSelected =
+          _requests.isNotEmpty && _selectedIds.length == _requests.length;
+      await showHeltySlidePanel(
+        context: context,
+        quickActions: _slideActions(),
+        below: _QueueRail(
+          fillHeight: false,
+          billing: _billing,
+          canBill: _selectedIds.isNotEmpty && !_billing,
+          canRefresh: !_loading && !_billing,
+          canSelect: _requests.isNotEmpty && !_loading && !_billing,
+          allSelected: allSelected,
+          selectedCount: _selectedIds.length,
+          wardCounts: _wardCounts,
+          notes: _notes,
+          onBill: _billSelected,
+          onRefresh: () => _load(reset: true),
+          onToggleSelectAll: () => _toggleSelectAll(!allSelected),
+          onViewAllNotes: _showAllNotes,
+          showQuickActions: false,
+        ),
+        bodyBuilder: (ctx) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              final theme = Theme.of(context);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (compact) ...[
+                    _GroupDropdown(
+                      mode: _listMode,
+                      onChanged: (mode) {
+                        _setListMode(mode);
+                        setDialogState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Text(
+                    'Date range',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _loading || _billing
+                        ? null
+                        : () async {
+                            await _pickDateRange(ctx);
+                            setDialogState(() {});
+                          },
+                    icon: const Icon(Icons.date_range, size: 18),
+                    label: Text(
+                      '${DateFormatter.shortDate(_from)} – ${DateFormatter.shortDate(_to)}',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _quickChip('Today', _QuickRange.today, setDialogState),
+                      _quickChip(
+                        'Last 7 days',
+                        _QuickRange.last7,
+                        setDialogState,
+                      ),
+                      _quickChip(
+                        'This month',
+                        _QuickRange.thisMonth,
+                        setDialogState,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+      return;
+    }
     await showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.18),
@@ -1076,6 +1193,7 @@ class _MedicationRequestsScreenState
             onRefresh: () => _load(reset: true),
             onToggleSelectAll: () => _toggleSelectAll(!allSelected),
             onViewAllNotes: _showAllNotes,
+            showQuickActions: showRail,
           );
 
           if (showRail) {
@@ -1089,14 +1207,7 @@ class _MedicationRequestsScreenState
             );
           }
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: mainColumn),
-              const SizedBox(height: 10),
-              SizedBox(height: 280, child: SingleChildScrollView(child: rail)),
-            ],
-          );
+          return mainColumn;
         },
       ),
     );
@@ -2606,6 +2717,7 @@ class _QueueRail extends StatelessWidget {
     required this.onRefresh,
     required this.onToggleSelectAll,
     required this.onViewAllNotes,
+    this.showQuickActions = true,
   });
 
   final bool fillHeight;
@@ -2621,10 +2733,12 @@ class _QueueRail extends StatelessWidget {
   final VoidCallback onRefresh;
   final VoidCallback onToggleSelectAll;
   final VoidCallback onViewAllNotes;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActions(
+    final quick = showQuickActions
+        ? _QuickActions(
       billing: billing,
       canBill: canBill,
       canRefresh: canRefresh,
@@ -2633,8 +2747,9 @@ class _QueueRail extends StatelessWidget {
       selectedCount: selectedCount,
       onBill: onBill,
       onRefresh: onRefresh,
-      onToggleSelectAll: onToggleSelectAll,
-    );
+            onToggleSelectAll: onToggleSelectAll,
+          )
+        : null;
     final wards = _WardCard(counts: wardCounts, expanded: fillHeight);
     final notesCard = _NotesCard(
       notes: notes,
@@ -2646,8 +2761,7 @@ class _QueueRail extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 10),
+          if (quick != null) ...[quick, const SizedBox(height: 10)],
           wards,
           const SizedBox(height: 10),
           notesCard,
@@ -2658,8 +2772,7 @@ class _QueueRail extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 10),
+        if (quick != null) ...[quick, const SizedBox(height: 10)],
         Expanded(flex: 3, child: wards),
         const SizedBox(height: 10),
         Expanded(flex: 2, child: notesCard),

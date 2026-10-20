@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../helper/date.formatter.dart';
 import '../../../helper/theme.dart';
+import '../../../widgets/helty_slide_panel.dart';
 import '../../../widgets/helty_surface.dart';
 import '../walk_in_queue_metrics.dart';
 
@@ -24,6 +25,7 @@ class WalkInSidebar extends StatelessWidget {
     required this.onViewQueue,
     required this.onViewAllNotes,
     this.fillHeight = false,
+    this.showQuickActions = true,
   });
 
   final List<WalkInRoomCount> roomCounts;
@@ -34,15 +36,18 @@ class WalkInSidebar extends StatelessWidget {
   final VoidCallback onViewQueue;
   final VoidCallback onViewAllNotes;
   final bool fillHeight;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
+    final quick = showQuickActions
+        ? _QuickActionsCard(
       onNewWalkIn: onNewWalkIn,
       onCheckIn: onCheckIn,
       onAssignDepartment: onAssignDepartment,
-      onViewQueue: onViewQueue,
-    );
+            onViewQueue: onViewQueue,
+          )
+        : null;
     final rooms = _RoomCountsCard(roomCounts: roomCounts, expanded: fillHeight);
     final notesCard = _NotesCard(
       notes: notes,
@@ -54,8 +59,7 @@ class WalkInSidebar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 12),
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
           rooms,
           const SizedBox(height: 12),
           notesCard,
@@ -66,14 +70,55 @@ class WalkInSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(flex: 3, child: rooms),
         const SizedBox(height: 12),
         Expanded(flex: 2, child: notesCard),
       ],
     );
   }
+}
+
+List<HeltySlideAction> walkInSlideActions(
+  BuildContext context, {
+  required VoidCallback onNewWalkIn,
+  required VoidCallback onCheckIn,
+  required VoidCallback onAssignDepartment,
+  required VoidCallback onViewQueue,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    HeltySlideAction(
+      label: 'New Walk-in Patient',
+      icon: Icons.person_add_alt_1,
+      colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+      onPressed: onNewWalkIn,
+    ),
+    HeltySlideAction(
+      label: 'Check Patient In',
+      icon: Icons.login,
+      colors: [
+        WalkInQueueMetrics.waitGreen,
+        Color.lerp(WalkInQueueMetrics.waitGreen, cs.primary, 0.25)!,
+      ],
+      onPressed: onCheckIn,
+    ),
+    HeltySlideAction(
+      label: 'Assign Department',
+      icon: Icons.apartment_outlined,
+      colors: [
+        WalkInQueueMetrics.waitAmber,
+        Color.lerp(WalkInQueueMetrics.waitAmber, cs.error, 0.15)!,
+      ],
+      onPressed: onAssignDepartment,
+    ),
+    HeltySlideAction(
+      label: 'View Queue',
+      icon: Icons.queue_outlined,
+      colors: [cs.tertiary, Color.lerp(cs.tertiary, cs.primary, 0.4)!],
+      onPressed: onViewQueue,
+    ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

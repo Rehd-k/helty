@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/service_providers.dart';
@@ -405,6 +406,43 @@ class _RadiologyDashboardScreenState
   Widget _buildQuickActions(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    if (heltyUseSlideFilters(context)) {
+      final colors = [
+        colorScheme.primary,
+        Color.lerp(colorScheme.primary, colorScheme.tertiary, 0.4)!,
+      ];
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: HeltyMobileFiltersButton(
+          onPressed: () => showHeltySlidePanel(
+            context: context,
+            quickActions: [
+              HeltySlideAction(
+                label: 'New request',
+                icon: Icons.add_circle_outline_rounded,
+                colors: colors,
+                onPressed: () =>
+                    context.router.push(RadiologyCreateRequestRoute()),
+              ),
+              HeltySlideAction(
+                label: 'Worklist',
+                icon: Icons.list_alt_rounded,
+                colors: colors,
+                onPressed: () => context.router.push(RadiologyWorklistRoute()),
+              ),
+              HeltySlideAction(
+                label: 'By patient',
+                icon: Icons.person_search_rounded,
+                colors: colors,
+                onPressed: () => context.router.push(
+                  EnlistPaitientRoute(serviceName: 'Radiology'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Card(
       elevation: 0,

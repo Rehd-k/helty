@@ -9,6 +9,7 @@ import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_ui_tabs.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/services/admission_alert_service.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 class InpatientSidebar extends StatefulWidget {
@@ -16,11 +17,13 @@ class InpatientSidebar extends StatefulWidget {
     super.key,
     required this.admission,
     this.fillHeight = false,
+    this.showQuickActions = true,
     this.onLocationUpdated,
   });
 
   final AdmissionModel? admission;
   final bool fillHeight;
+  final bool showQuickActions;
   final VoidCallback? onLocationUpdated;
 
   @override
@@ -83,7 +86,9 @@ class _InpatientSidebarState extends State<InpatientSidebar> {
         scope?.isAdmissionActive == true &&
         widget.admission != null;
 
-    final quick = _QuickActionsCard(onSelect: _go);
+    final quick = widget.showQuickActions
+        ? _QuickActionsCard(onSelect: _go)
+        : null;
     final alerts = _AlertsCard(
       alerts: _alerts,
       loading: _loadingAlerts,
@@ -92,8 +97,7 @@ class _InpatientSidebarState extends State<InpatientSidebar> {
     );
 
     final children = <Widget>[
-      quick,
-      const SizedBox(height: 12),
+      if (quick != null) ...[quick, const SizedBox(height: 12)],
       if (widget.fillHeight) Expanded(flex: 3, child: alerts) else alerts,
       if (showWard) ...[
         const SizedBox(height: 12),
@@ -127,6 +131,60 @@ class _InpatientSidebarState extends State<InpatientSidebar> {
       children: children,
     );
   }
+}
+
+List<HeltySlideAction> inpatientSlideActions(
+  BuildContext context, {
+  required void Function(int tab) onSelect,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  const specs = <({String label, IconData icon, Color color, int tab})>[
+    (
+      label: 'Vitals',
+      icon: Icons.monitor_heart_outlined,
+      color: InpatientMetrics.waitRed,
+      tab: InpatientUiTabs.vitals,
+    ),
+    (
+      label: 'Medications',
+      icon: Icons.medication_outlined,
+      color: InpatientMetrics.waitAmber,
+      tab: InpatientUiTabs.medications,
+    ),
+    (
+      label: 'Lab Results',
+      icon: Icons.science_outlined,
+      color: InpatientMetrics.iconTeal,
+      tab: InpatientUiTabs.labResults,
+    ),
+    (
+      label: 'Imaging',
+      icon: Icons.photo_outlined,
+      color: InpatientMetrics.iconBlue,
+      tab: InpatientUiTabs.imaging,
+    ),
+    (
+      label: 'Nursing Report',
+      icon: Icons.note_alt_outlined,
+      color: InpatientMetrics.iconPink,
+      tab: InpatientUiTabs.nursingReport,
+    ),
+    (
+      label: 'Procedures',
+      icon: Icons.healing_outlined,
+      color: InpatientMetrics.iconPurple,
+      tab: InpatientUiTabs.procedures,
+    ),
+  ];
+  return [
+    for (final spec in specs)
+      HeltySlideAction(
+        label: spec.label,
+        icon: spec.icon,
+        colors: [spec.color, Color.lerp(spec.color, cs.primary, 0.25)!],
+        onPressed: () => onSelect(spec.tab),
+      ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

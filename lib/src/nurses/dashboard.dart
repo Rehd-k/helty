@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../auth/nursing_permissions.dart';
@@ -346,6 +347,7 @@ class _DashboardBody extends StatelessWidget {
           ? () => context.router.push(const NursingAssignmentsRoute())
           : null,
       fillHeight: fillHeight,
+      showQuickActions: fillHeight,
     );
   }
 
@@ -405,6 +407,27 @@ class _DashboardBody extends StatelessWidget {
 
   bool get _searchQueryActive => searchController.text.trim().isNotEmpty;
 
+  List<HeltySlideAction> _mobileQuickActions(BuildContext context) {
+    if (showSideBySide) return const [];
+    final canRoster = canManageShiftRoster(staff, bootstrap);
+    final canAssign =
+        canAssignInpatientPatients(staff, bootstrap) ||
+        canAssignOutpatientPatients(staff, bootstrap);
+    return nurseDashboardSlideActions(
+      context,
+      onRefresh: onRefresh,
+      onWardCensus: () => context.router.push(const InpatientsListRoute()),
+      onWaitingPatients: () =>
+          context.router.push(const WaitingPatientsRoute()),
+      onManageRoster: canRoster
+          ? () => context.router.push(const NursingRosterRoute())
+          : null,
+      onAssignments: canAssign
+          ? () => context.router.push(const NursingAssignmentsRoute())
+          : null,
+    );
+  }
+
   Widget _mainColumn(BuildContext context, {required bool useCards}) {
     final canRoster = canManageShiftRoster(staff, bootstrap);
     final canAssign =
@@ -452,6 +475,8 @@ class _DashboardBody extends StatelessWidget {
           searchController: searchController,
           showSearch: _showSearch,
           windowLabel: windowLabel,
+          quickActions: _mobileQuickActions(context),
+          below: showSideBySide ? null : _sidebar(context, fillHeight: false),
         ),
         if (!roleStrip.isEmpty) ...[const SizedBox(height: 10), roleStrip],
         const SizedBox(height: 10),
@@ -478,19 +503,7 @@ class _DashboardBody extends StatelessWidget {
       builder: (context, constraints) {
         final bounded = constraints.maxHeight.isFinite;
         if (bounded) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: _mainColumn(context, useCards: useCards)),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 280,
-                child: SingleChildScrollView(
-                  child: _sidebar(context, fillHeight: false),
-                ),
-              ),
-            ],
-          );
+          return _mainColumn(context, useCards: useCards);
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -515,14 +528,14 @@ class _DashboardBody extends StatelessWidget {
               searchController: searchController,
               showSearch: _showSearch,
               windowLabel: windowLabel,
+              quickActions: _mobileQuickActions(context),
+          below: showSideBySide ? null : _sidebar(context, fillHeight: false),
             ),
             const SizedBox(height: 10),
             SizedBox(
               height: compact ? 480 : 520,
               child: _mainPanel(context, useCards: useCards),
             ),
-            const SizedBox(height: 10),
-            _sidebar(context, fillHeight: false),
           ],
         );
       },

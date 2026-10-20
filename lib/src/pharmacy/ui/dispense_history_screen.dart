@@ -8,6 +8,7 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/pharmacy/widgets/pharmacy_page_chrome.dart';
 import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../models/pharmacy_model.dart';
@@ -452,6 +453,7 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
               _fetchHistory();
             },
             onRefresh: _loading ? null : _fetchHistory,
+            showQuickActions: showRail,
           );
 
           final main = Column(
@@ -478,21 +480,74 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
             );
           }
 
-          return Column(
-            children: [
-              Expanded(child: main),
-              const SizedBox(height: 10),
-              rail,
-            ],
-          );
+          return main;
         },
       ),
     );
   }
 
   Future<void> _openFilters() async {
+    final cs = Theme.of(context).colorScheme;
     await showPharmacyFilterDialog(
       context: context,
+      quickActions: heltyUseSlideFilters(context)
+          ? [
+              HeltySlideAction(
+                label: 'Refresh',
+                icon: Icons.refresh,
+                colors: [
+                  PharmacyAccent.green,
+                  Color.lerp(PharmacyAccent.green, cs.primary, 0.25)!,
+                ],
+                onPressed: _loading ? null : _fetchHistory,
+              ),
+              HeltySlideAction(
+                label: 'Clear drug',
+                icon: Icons.medication_outlined,
+                colors: [
+                  PharmacyAccent.teal,
+                  Color.lerp(PharmacyAccent.teal, cs.primary, 0.25)!,
+                ],
+                onPressed: _selectedDrugId == null
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedDrugId = null;
+                          _selectedDrugName = null;
+                          _page = 1;
+                        });
+                        _syncQueryState();
+                        _fetchHistory();
+                      },
+              ),
+            ]
+          : const [],
+      below: heltyUseSlideFilters(context)
+          ? _DispenseRail(
+              gross: (!_loading && _error.isEmpty && !_summaryLoading)
+                  ? _aggGrossValue.toFinancial(isMoney: true)
+                  : '—',
+              patients: (!_loading && _error.isEmpty && !_summaryLoading)
+                  ? '$_aggDistinctPatients'
+                  : '—',
+              included: (!_loading && _error.isEmpty && !_summaryLoading)
+                  ? '$_aggRowCount'
+                  : '—',
+              capMessage: _summaryCapMessage,
+              canClearDrug: _selectedDrugId != null,
+              onClearDrug: () {
+                setState(() {
+                  _selectedDrugId = null;
+                  _selectedDrugName = null;
+                  _page = 1;
+                });
+                _syncQueryState();
+                _fetchHistory();
+              },
+              onRefresh: _loading ? null : _fetchHistory,
+              showQuickActions: false,
+            )
+          : null,
       body: (ctx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -1013,6 +1068,7 @@ class _DispenseRail extends StatelessWidget {
     required this.canClearDrug,
     required this.onClearDrug,
     required this.onRefresh,
+    this.showQuickActions = true,
   });
 
   final String gross;
@@ -1022,6 +1078,7 @@ class _DispenseRail extends StatelessWidget {
   final bool canClearDrug;
   final VoidCallback onClearDrug;
   final VoidCallback? onRefresh;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
@@ -1030,20 +1087,21 @@ class _DispenseRail extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        HeltySurfaceCard(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const HeltySolidIcon(
-                    icon: Icons.flash_on,
-                    color: PharmacyAccent.amber,
-                    size: 26,
-                    iconSize: 14,
-                    radius: 7,
-                  ),
+        if (showQuickActions)
+          HeltySurfaceCard(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const HeltySolidIcon(
+                      icon: Icons.flash_on,
+                      color: PharmacyAccent.amber,
+                      size: 26,
+                      iconSize: 14,
+                      radius: 7,
+                    ),
                   const SizedBox(width: 8),
                   Text(
                     'Quick Actions',

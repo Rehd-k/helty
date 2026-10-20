@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../helper/theme.dart';
 import '../../paitients/patient_model.dart';
 import '../../patient_chart/models/patient_chart_models.dart';
+import '../../widgets/helty_slide_panel.dart';
 import '../../widgets/helty_surface.dart';
 import '../patient_hub_metrics.dart';
 
@@ -15,6 +16,7 @@ class HubSidebar extends StatelessWidget {
     required this.onSearch,
     this.onSelectTab,
     this.fillHeight = false,
+    this.showQuickActions = true,
   });
 
   final ChartPatientSummary patient;
@@ -23,13 +25,16 @@ class HubSidebar extends StatelessWidget {
   final VoidCallback onSearch;
   final void Function(int index)? onSelectTab;
   final bool fillHeight;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
-      onSearch: onSearch,
-      onSelectTab: onSelectTab,
-    );
+    final quick = showQuickActions
+        ? _QuickActionsCard(
+            onSearch: onSearch,
+            onSelectTab: onSelectTab,
+          )
+        : null;
     final facts = _FactsCard(
       patient: patient,
       summary: summary,
@@ -41,8 +46,7 @@ class HubSidebar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 12),
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
           facts,
         ],
       );
@@ -51,12 +55,37 @@ class HubSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(child: facts),
       ],
     );
   }
+}
+
+List<HeltySlideAction> hubSlideActions(
+  BuildContext context, {
+  required VoidCallback onSearch,
+  void Function(int index)? onSelectTab,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    HeltySlideAction(
+      label: 'Back to search',
+      icon: Icons.search,
+      colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+      onPressed: onSearch,
+    ),
+    if (onSelectTab != null)
+      HeltySlideAction(
+        label: 'Overview',
+        icon: Icons.dashboard_outlined,
+        colors: [
+          PatientHubMetrics.iconBlue,
+          Color.lerp(PatientHubMetrics.iconBlue, cs.primary, 0.25)!,
+        ],
+        onPressed: () => onSelectTab(0),
+      ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

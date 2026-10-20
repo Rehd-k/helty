@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/store/models/store_models.dart';
 import 'package:helty/src/store/providers/store_providers.dart';
 
@@ -204,6 +205,39 @@ class _StoreDashboardScreenState extends ConsumerState<StoreDashboardScreen> {
   }
 
   Widget _buildQuickActions(BuildContext context, ThemeData theme) {
+    if (heltyUseSlideFilters(context)) {
+      final cs = theme.colorScheme;
+      final colors = [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.4)!];
+      HeltySlideAction action(String label, IconData icon, PageRouteInfo route) {
+        return HeltySlideAction(
+          label: label,
+          icon: icon,
+          colors: colors,
+          onPressed: () => context.router.push(route),
+        );
+      }
+
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: HeltyMobileFiltersButton(
+          onPressed: () => showHeltySlidePanel(
+            context: context,
+            quickActions: [
+              action('Categories', Icons.category_rounded, const StoreCategoriesRoute()),
+              action('Items', Icons.inventory_rounded, const StoreItemsRoute()),
+              action('Locations', Icons.place_rounded, const StoreLocationsRoute()),
+              action('Stock', Icons.warehouse_rounded, const StoreStockRoute()),
+              action('Issue items', Icons.call_made_rounded, const StoreMovementsRoute()),
+              action('Receive items', Icons.call_received_rounded, const StoreMovementsRoute()),
+              action('Transfer', Icons.swap_horiz_rounded, const StoreMovementsRoute()),
+              action('Analytics', Icons.analytics_rounded, const StoreAnalyticsRoute()),
+              action('Consumables', Icons.medical_services_outlined, const StoreConsumablesCatalogRoute()),
+              action('Consumable analytics', Icons.insights_outlined, const StoreConsumableAnalyticsRoute()),
+            ],
+          ),
+        ),
+      );
+    }
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),

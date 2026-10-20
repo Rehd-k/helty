@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import '../app/product_definition.dart';
 import '../app/product_environment.dart';
 import '../core/errors/user_facing_error.dart';
@@ -1071,12 +1072,78 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                 ),
               ],
             ),
-            second: Column(
-              children: [
-                _buildFeedbackPanel(context),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(20),
+            second: heltyUseSlideFilters(context)
+                ? Align(
+                    alignment: Alignment.centerRight,
+                    child: HeltyMobileFiltersButton(
+                      onPressed: () {
+                        final cs = colorScheme;
+                        showHeltySlidePanel(
+                          context: context,
+                          below: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildFeedbackPanel(context),
+                              const SizedBox(height: 24),
+                              AppointmentsCalendarCard(
+                                footer: Text(
+                                  "Today's total appointments: "
+                                  '${_loadingSummary ? '…' : '${_summary?.appointmentsToday ?? '—'}'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          quickActions: [
+                            HeltySlideAction(
+                              label: 'Register New Patient',
+                              icon: Icons.person_add,
+                              colors: [
+                                cs.primary,
+                                Color.lerp(cs.primary, cs.tertiary, 0.45)!,
+                              ],
+                              onPressed: () =>
+                                  context.router.push(PatientFormRoute()),
+                            ),
+                            if (ProductEnvironment.currentProduct ==
+                                AppProduct.hospital) ...[
+                              HeltySlideAction(
+                                label: 'Book Appointment',
+                                icon: Icons.calendar_month,
+                                colors: [
+                                  cs.primary,
+                                  Color.lerp(cs.primary, cs.tertiary, 0.25)!,
+                                ],
+                                onPressed: () =>
+                                    context.router.push(NewAppointmentRoute()),
+                              ),
+                              HeltySlideAction(
+                                label: 'Check-In Patient',
+                                icon: Icons.login,
+                                colors: [
+                                  cs.tertiary,
+                                  Color.lerp(cs.tertiary, cs.primary, 0.4)!,
+                                ],
+                                onPressed: () =>
+                                    _openCheckInPatientDialog(context),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
+                  )
+                : Column(
+                    children: [
+                      _buildFeedbackPanel(context),
+                      const SizedBox(height: 24),
+                      Container(
+                    padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),

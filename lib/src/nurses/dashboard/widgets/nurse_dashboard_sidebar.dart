@@ -4,6 +4,7 @@ import '../../../helper/date.formatter.dart';
 import '../../../helper/theme.dart';
 import '../../../models/nurse_dashboard_models.dart';
 import '../../../nursing/models/nursing_models.dart';
+import '../../../widgets/helty_slide_panel.dart';
 import '../../../widgets/helty_surface.dart';
 import '../nurse_dashboard_metrics.dart';
 
@@ -21,6 +22,7 @@ class NurseDashboardSidebar extends StatelessWidget {
     this.onManageRoster,
     this.onAssignments,
     this.fillHeight = false,
+    this.showQuickActions = true,
   });
 
   final List<NurseStaffOnDuty> staffOnDuty;
@@ -33,16 +35,19 @@ class NurseDashboardSidebar extends StatelessWidget {
   final VoidCallback? onManageRoster;
   final VoidCallback? onAssignments;
   final bool fillHeight;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
-      onRefresh: onRefresh,
-      onWardCensus: onWardCensus,
-      onWaitingPatients: onWaitingPatients,
-      onManageRoster: onManageRoster,
-      onAssignments: onAssignments,
-    );
+    final quick = showQuickActions
+        ? _QuickActionsCard(
+            onRefresh: onRefresh,
+            onWardCensus: onWardCensus,
+            onWaitingPatients: onWaitingPatients,
+            onManageRoster: onManageRoster,
+            onAssignments: onAssignments,
+          )
+        : null;
     final roster = myShifts.isNotEmpty
         ? _MyShiftsCard(shifts: myShifts, expanded: fillHeight)
         : _StaffCard(staff: staffOnDuty, expanded: fillHeight);
@@ -56,8 +61,7 @@ class NurseDashboardSidebar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 12),
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
           roster,
           const SizedBox(height: 12),
           alertsCard,
@@ -68,14 +72,64 @@ class NurseDashboardSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(flex: 3, child: roster),
         const SizedBox(height: 12),
         Expanded(flex: 2, child: alertsCard),
       ],
     );
   }
+}
+
+List<HeltySlideAction> nurseDashboardSlideActions(
+  BuildContext context, {
+  required VoidCallback onRefresh,
+  required VoidCallback onWardCensus,
+  required VoidCallback onWaitingPatients,
+  VoidCallback? onManageRoster,
+  VoidCallback? onAssignments,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    HeltySlideAction(
+      label: 'Refresh Dashboard',
+      icon: Icons.refresh,
+      colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+      onPressed: onRefresh,
+    ),
+    HeltySlideAction(
+      label: 'Ward Census',
+      icon: Icons.hotel_outlined,
+      colors: [
+        NurseDashboardMetrics.iconTeal,
+        Color.lerp(NurseDashboardMetrics.iconTeal, cs.primary, 0.25)!,
+      ],
+      onPressed: onWardCensus,
+    ),
+    HeltySlideAction(
+      label: 'Waiting Patients',
+      icon: Icons.groups_outlined,
+      colors: [
+        NurseDashboardMetrics.waitAmber,
+        Color.lerp(NurseDashboardMetrics.waitAmber, cs.error, 0.15)!,
+      ],
+      onPressed: onWaitingPatients,
+    ),
+    if (onManageRoster != null)
+      HeltySlideAction(
+        label: 'Manage Roster',
+        icon: Icons.calendar_month_outlined,
+        colors: [cs.tertiary, Color.lerp(cs.tertiary, cs.primary, 0.4)!],
+        onPressed: onManageRoster,
+      )
+    else if (onAssignments != null)
+      HeltySlideAction(
+        label: 'Assignments',
+        icon: Icons.assignment_ind_outlined,
+        colors: [cs.tertiary, Color.lerp(cs.tertiary, cs.primary, 0.4)!],
+        onPressed: onAssignments,
+      ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

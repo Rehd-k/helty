@@ -16,6 +16,7 @@ import 'package:helty/src/accounts/widgets/accounts_section_header.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 
 @RoutePage()
 class AccountsDashboardScreen extends ConsumerWidget {
@@ -52,14 +53,29 @@ class AccountsDashboardScreen extends ConsumerWidget {
             children: [
               AccountsKpiGrid(tiles: tiles),
               const SizedBox(height: 28),
-              AccountsSectionHeader(
-                icon: Icons.bolt_rounded,
-                title: 'Quick actions',
-                subtitle:
-                    'Jump to collections, receivables, reports, and audit',
-              ),
-              const SizedBox(height: 16),
-              _QuickActionsGrid(isHead: isHead),
+              if (heltyUseSlideFilters(context))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: HeltyMobileFiltersButton(
+                    onPressed: () => showHeltySlidePanel(
+                      context: context,
+                      quickActions: _QuickActionsGrid.slideActions(
+                        context,
+                        isHead: isHead,
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
+                AccountsSectionHeader(
+                  icon: Icons.bolt_rounded,
+                  title: 'Quick actions',
+                  subtitle:
+                      'Jump to collections, receivables, reports, and audit',
+                ),
+                const SizedBox(height: 16),
+                _QuickActionsGrid(isHead: isHead),
+              ],
               const SizedBox(height: 28),
               AccountsSectionHeader(
                 icon: Icons.history_rounded,
@@ -179,9 +195,25 @@ class _QuickActionsGrid extends StatelessWidget {
 
   final bool isHead;
 
-  @override
-  Widget build(BuildContext context) {
-    final actions = <_Action>[
+  static List<HeltySlideAction> slideActions(
+    BuildContext context, {
+    required bool isHead,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final colors = [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.4)!];
+    return [
+      for (final action in _actionsFor(isHead))
+        HeltySlideAction(
+          label: action.label,
+          icon: action.icon,
+          colors: colors,
+          onPressed: () => context.router.push(action.route),
+        ),
+    ];
+  }
+
+  static List<_Action> _actionsFor(bool isHead) {
+    return <_Action>[
       _Action(
         'Collections ledger',
         Icons.list_alt_rounded,
@@ -276,6 +308,11 @@ class _QuickActionsGrid extends StatelessWidget {
           const AccountsRevenueSummaryRoute(),
         ),
     ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = _actionsFor(isHead);
 
     return Wrap(
       spacing: 10,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../helper/theme.dart';
+import '../../widgets/helty_slide_panel.dart';
 import '../../widgets/helty_surface.dart';
 import '../ed_board_metrics.dart';
 import '../models/ed_enums.dart';
@@ -24,6 +25,7 @@ class EdBoardSidebar extends StatelessWidget {
     required this.onRefresh,
     this.canRegister = false,
     this.fillHeight = false,
+    this.showQuickActions = true,
   });
 
   final List<EdBoardCountRow> esiCounts;
@@ -32,14 +34,17 @@ class EdBoardSidebar extends StatelessWidget {
   final VoidCallback onRefresh;
   final bool canRegister;
   final bool fillHeight;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
-      onRegister: onRegister,
-      onRefresh: onRefresh,
-      canRegister: canRegister,
-    );
+    final quick = showQuickActions
+        ? _QuickActionsCard(
+            onRegister: onRegister,
+            onRefresh: onRefresh,
+            canRegister: canRegister,
+          )
+        : null;
     final esi = _CountsCard(
       title: 'By ESI',
       icon: Icons.priority_high_outlined,
@@ -61,8 +66,7 @@ class EdBoardSidebar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 12),
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
           esi,
           const SizedBox(height: 12),
           status,
@@ -73,14 +77,40 @@ class EdBoardSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(flex: 3, child: esi),
         const SizedBox(height: 12),
         Expanded(flex: 2, child: status),
       ],
     );
   }
+}
+
+List<HeltySlideAction> edBoardSlideActions(
+  BuildContext context, {
+  required VoidCallback onRegister,
+  required VoidCallback onRefresh,
+  required bool canRegister,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    if (canRegister)
+      HeltySlideAction(
+        label: 'Register patient',
+        icon: Icons.person_add_alt_1,
+        colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+        onPressed: onRegister,
+      ),
+    HeltySlideAction(
+      label: 'Refresh board',
+      icon: Icons.refresh,
+      colors: [
+        EdBoardMetrics.iconTeal,
+        Color.lerp(EdBoardMetrics.iconTeal, cs.primary, 0.25)!,
+      ],
+      onPressed: onRefresh,
+    ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

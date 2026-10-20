@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../helper/theme.dart';
+import '../../widgets/helty_slide_panel.dart';
 import '../../widgets/helty_surface.dart';
 import '../cmd_oversight_metrics.dart';
 import '../models/cmd_models.dart';
@@ -17,6 +18,7 @@ class CmdOversightSidebar extends StatelessWidget {
     required this.onHospitalOverview,
     required this.onViewAllPerformance,
     this.fillHeight = false,
+    this.showQuickActions = true,
   });
 
   final List<CmdStaffingAlert> alerts;
@@ -27,15 +29,18 @@ class CmdOversightSidebar extends StatelessWidget {
   final VoidCallback onHospitalOverview;
   final VoidCallback onViewAllPerformance;
   final bool fillHeight;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
-      onRefresh: onRefresh,
-      onCommandCenter: onCommandCenter,
-      onAlerts: onAlerts,
-      onHospitalOverview: onHospitalOverview,
-    );
+    final quick = showQuickActions
+        ? _QuickActionsCard(
+            onRefresh: onRefresh,
+            onCommandCenter: onCommandCenter,
+            onAlerts: onAlerts,
+            onHospitalOverview: onHospitalOverview,
+          )
+        : null;
     final alertsCard = _AlertsCard(alerts: alerts, expanded: fillHeight);
     final perfCard = _PerformanceCard(
       performance: performance,
@@ -47,8 +52,7 @@ class CmdOversightSidebar extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          quick,
-          const SizedBox(height: 12),
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
           alertsCard,
           const SizedBox(height: 12),
           perfCard,
@@ -59,14 +63,55 @@ class CmdOversightSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(flex: 3, child: alertsCard),
         const SizedBox(height: 12),
         Expanded(flex: 2, child: perfCard),
       ],
     );
   }
+}
+
+List<HeltySlideAction> cmdOversightSlideActions(
+  BuildContext context, {
+  required VoidCallback onRefresh,
+  required VoidCallback onCommandCenter,
+  required VoidCallback onAlerts,
+  required VoidCallback onHospitalOverview,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    HeltySlideAction(
+      label: 'Refresh Roster',
+      icon: Icons.refresh,
+      colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+      onPressed: onRefresh,
+    ),
+    HeltySlideAction(
+      label: 'Command Center',
+      icon: Icons.hub_outlined,
+      colors: [
+        CmdOversightMetrics.waitGreen,
+        Color.lerp(CmdOversightMetrics.waitGreen, cs.primary, 0.25)!,
+      ],
+      onPressed: onCommandCenter,
+    ),
+    HeltySlideAction(
+      label: 'Alerts & Incidents',
+      icon: Icons.crisis_alert_outlined,
+      colors: [
+        CmdOversightMetrics.iconTeal,
+        Color.lerp(CmdOversightMetrics.iconTeal, cs.primary, 0.25)!,
+      ],
+      onPressed: onAlerts,
+    ),
+    HeltySlideAction(
+      label: 'Hospital Overview',
+      icon: Icons.account_balance_outlined,
+      colors: [cs.tertiary, Color.lerp(cs.tertiary, cs.primary, 0.4)!],
+      onPressed: onHospitalOverview,
+    ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {

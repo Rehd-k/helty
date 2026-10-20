@@ -4,6 +4,7 @@ import '../../../helper/theme.dart';
 import '../../../models/consulting_room_model.dart';
 import '../../../services/department_service.dart';
 import '../../../widgets/date.filter.dart';
+import '../../../widgets/helty_slide_panel.dart';
 import '../walk_in_queue_metrics.dart';
 
 /// Compact one-line search + consulting room, department, status.
@@ -27,6 +28,8 @@ class WalkInFilterBar extends StatelessWidget {
     this.fromDate,
     this.toDate,
     this.onOpenFilterMenu,
+    this.quickActions = const [],
+    this.below,
   });
 
   final TextEditingController searchController;
@@ -51,6 +54,8 @@ class WalkInFilterBar extends StatelessWidget {
   final DateTime? fromDate;
   final DateTime? toDate;
   final VoidCallback? onOpenFilterMenu;
+  final List<HeltySlideAction> quickActions;
+  final Widget? below;
 
   InputDecoration _decoration(
     BuildContext context, {
@@ -286,6 +291,14 @@ Future<void> showWalkInFilterMenu(
   BuildContext context,
   WalkInFilterBar filterBar,
 ) {
+  if (heltyUseSlideFilters(context)) {
+    return showHeltySlidePanel(
+      context: context,
+      bodyBuilder: filterBar.filterMenuBody,
+      quickActions: filterBar.quickActions,
+      below: filterBar.below,
+    );
+  }
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.18),

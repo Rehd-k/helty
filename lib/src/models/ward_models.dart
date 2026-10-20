@@ -257,6 +257,16 @@ class InpatientCensus {
   }
 }
 
+int _activePatientCountFromJson(
+  Map<String, dynamic> json,
+  Object? inpatientsJson,
+) {
+  final explicit = json['activePatientCount'];
+  if (explicit is num) return explicit.toInt();
+  if (inpatientsJson is List) return inpatientsJson.length;
+  return 0;
+}
+
 class Ward {
   Ward({
     required this.id,
@@ -270,6 +280,7 @@ class Ward {
     this.updatedAt,
     this.beds = const [],
     this.inpatients = const [],
+    this.activePatientCount = 0,
   });
 
   final String id;
@@ -285,6 +296,9 @@ class Ward {
   final DateTime? updatedAt;
   final List<Bed> beds;
   final List<InpatientCensus> inpatients;
+
+  /// Current inpatients (`AdmissionStatus.ACTIVE`) on this ward.
+  final int activePatientCount;
 
   factory Ward.fromJson(Map<String, dynamic> json) {
     final bedsJson = json['beds'];
@@ -317,6 +331,24 @@ class Ward {
                 .map(InpatientCensus.fromJson)
                 .toList()
           : const [],
+      activePatientCount: _activePatientCountFromJson(json, inpatientsJson),
+    );
+  }
+
+  Ward copyWith({int? activePatientCount, List<InpatientCensus>? inpatients}) {
+    return Ward(
+      id: id,
+      name: name,
+      capacity: capacity,
+      type: type,
+      departmentId: departmentId,
+      departmentName: departmentName,
+      drugPricePercentage: drugPricePercentage,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      beds: beds,
+      inpatients: inpatients ?? this.inpatients,
+      activePatientCount: activePatientCount ?? this.activePatientCount,
     );
   }
 

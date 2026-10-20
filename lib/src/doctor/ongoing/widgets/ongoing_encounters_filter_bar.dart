@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../helper/theme.dart';
 import '../../../widgets/date.filter.dart';
+import '../../../widgets/helty_slide_panel.dart';
 import '../../../widgets/helty_surface.dart';
 import '../ongoing_encounters_metrics.dart';
 
@@ -23,6 +24,8 @@ class OngoingEncountersFilterBar extends StatelessWidget {
     this.fromDate,
     this.toDate,
     this.onOpenFilterMenu,
+    this.quickActions = const [],
+    this.below,
   });
 
   final TextEditingController searchController;
@@ -44,6 +47,8 @@ class OngoingEncountersFilterBar extends StatelessWidget {
   final DateTime? fromDate;
   final DateTime? toDate;
   final VoidCallback? onOpenFilterMenu;
+  final List<HeltySlideAction> quickActions;
+  final Widget? below;
 
   InputDecoration _decoration(
     BuildContext context, {
@@ -252,6 +257,14 @@ Future<void> showOngoingEncountersFilterMenu(
   BuildContext context,
   OngoingEncountersFilterBar filterBar,
 ) {
+  if (heltyUseSlideFilters(context)) {
+    return showHeltySlidePanel(
+      context: context,
+      bodyBuilder: filterBar.filterMenuBody,
+      quickActions: filterBar.quickActions,
+      below: filterBar.below,
+    );
+  }
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.18),

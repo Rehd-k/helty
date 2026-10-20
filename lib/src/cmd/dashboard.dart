@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 import 'cmd_command_metrics.dart';
@@ -157,15 +158,43 @@ class _DashboardBody extends StatelessWidget {
       onViewAllActivity: () =>
           showCmdActivityDialog(context, bundle.activityFeed),
       fillHeight: fillHeight,
+      showQuickActions: fillHeight,
     );
   }
 
-  Widget _mainColumn() {
+  List<HeltySlideAction> _mobileActions(BuildContext context) {
+    return cmdCommandSlideActions(
+      context,
+      onRefresh: onRefresh,
+      onHospitalOverview: () => _openOverview(context),
+      onFinancialCommand: () => _openFinancial(context),
+      onAlerts: () => _openAlerts(context),
+    );
+  }
+
+  Widget _filtersButton(BuildContext context) {
+    if (showSideBySide) return const SizedBox.shrink();
+    return HeltyMobileFiltersButton(
+      color: CmdCommandMetrics.iconPurple,
+      onPressed: () => showHeltySlidePanel(
+        context: context,
+        quickActions: _mobileActions(context),
+        below: _sidebar(context, fillHeight: false),
+      ),
+    );
+  }
+
+  Widget _mainColumn(BuildContext context) {
     final kpis = CmdCommandMetrics.kpiItemsFor(bundle);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        CmdCommandHeader(compact: compact),
+        Row(
+          children: [
+            Expanded(child: CmdCommandHeader(compact: compact)),
+            _filtersButton(context),
+          ],
+        ),
         const SizedBox(height: 10),
         CmdCommandKpiStrip(items: kpis, useSnapStrip: useSnapKpis),
         const SizedBox(height: 10),
@@ -184,7 +213,7 @@ class _DashboardBody extends StatelessWidget {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(flex: 9, child: _mainColumn()),
+          Expanded(flex: 9, child: _mainColumn(context)),
           const SizedBox(width: 12),
           Expanded(flex: 3, child: _sidebar(context, fillHeight: true)),
         ],
@@ -194,34 +223,23 @@ class _DashboardBody extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bounded = constraints.maxHeight.isFinite;
-        if (bounded) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: _mainColumn()),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 280,
-                child: SingleChildScrollView(
-                  child: _sidebar(context, fillHeight: false),
-                ),
-              ),
-            ],
-          );
-        }
+        if (bounded) return _mainColumn(context);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            CmdCommandHeader(compact: compact),
+            Row(
+              children: [
+                Expanded(child: CmdCommandHeader(compact: compact)),
+                _filtersButton(context),
+              ],
+            ),
             const SizedBox(height: 10),
             CmdCommandKpiStrip(
               items: CmdCommandMetrics.kpiItemsFor(bundle),
               useSnapStrip: useSnapKpis,
             ),
             const SizedBox(height: 10),
-            CmdCommandOverviewGrid(bundle: bundle, compact: compact),
-            const SizedBox(height: 10),
-            _sidebar(context, fillHeight: false),
+            CmdCommandOverviewGrid(bundle: bundle, compact: compact            ),
           ],
         );
       },

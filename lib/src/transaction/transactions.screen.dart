@@ -6,6 +6,7 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/shared/finance_status_colors.dart';
 
 import 'transaction_details_pane.dart';
@@ -160,6 +161,56 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         _selectedTransaction = null;
       });
     }
+  }
+
+  void _openFiltersPanel() {
+    if (!heltyUseSlideFilters(context)) {
+      setState(() => _isFiltersOpen = true);
+      return;
+    }
+    showHeltySlidePanel(
+      context: context,
+      bodyBuilder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            void sync(VoidCallback change) {
+              setState(change);
+              setLocal(() {});
+            }
+
+            return TransactionFiltersPanel(
+              theme: Theme.of(context),
+              dateFrom: _dateFrom,
+              dateTo: _dateTo,
+              onDateFromChanged: (d) => sync(() => _dateFrom = d),
+              onDateToChanged: (d) => sync(() => _dateTo = d),
+              status: _status,
+              onStatusChanged: (s) => sync(() => _status = s),
+              myTransactionsOnly: _myTransactionsOnly,
+              onMyTransactionsOnlyChanged: (v) =>
+                  sync(() => _myTransactionsOnly = v),
+              selectedInitiatedById: _initiatedById,
+              staffOptions: _staffSummaryOptions,
+              onInitiatedByChanged: (v) => sync(() => _initiatedById = v),
+              onApply: () {
+                Navigator.of(ctx).maybePop();
+                _applyFiltersFromPanel(
+                  dateFrom: _dateFrom,
+                  dateTo: _dateTo,
+                  status: _status,
+                  myTransactionsOnly: _myTransactionsOnly,
+                  selectedInitiatedById: _initiatedById,
+                );
+              },
+              onReset: () {
+                Navigator.of(ctx).maybePop();
+                _resetFilters();
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   void _applyFiltersFromPanel({
@@ -522,7 +573,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         ),
                       ),
                     OutlinedButton.icon(
-                      onPressed: () => setState(() => _isFiltersOpen = true),
+                      onPressed: _openFiltersPanel,
                       icon: const Icon(Icons.filter_list, size: 18),
                       label: const Text('Filters'),
                       style: OutlinedButton.styleFrom(

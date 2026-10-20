@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 /// Quick actions and ward list for the census rail.
@@ -16,6 +17,7 @@ class WardCensusSidebar extends StatelessWidget {
     required this.onAwaitingClearance,
     this.fillHeight = false,
     this.loadingWards = false,
+    this.showQuickActions = true,
   });
 
   final List<Ward> wards;
@@ -25,13 +27,16 @@ class WardCensusSidebar extends StatelessWidget {
   final VoidCallback onAwaitingClearance;
   final bool fillHeight;
   final bool loadingWards;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
-    final quick = _QuickActionsCard(
-      onRefresh: onRefresh,
-      onAwaitingClearance: onAwaitingClearance,
-    );
+    final quick = showQuickActions
+        ? _QuickActionsCard(
+            onRefresh: onRefresh,
+            onAwaitingClearance: onAwaitingClearance,
+          )
+        : null;
     final wardsCard = _WardsCard(
       wards: wards,
       selectedWardId: selectedWardId,
@@ -43,19 +48,46 @@ class WardCensusSidebar extends StatelessWidget {
     if (!fillHeight) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [quick, const SizedBox(height: 12), wardsCard],
+        children: [
+          if (quick != null) ...[quick, const SizedBox(height: 12)],
+          wardsCard,
+        ],
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        quick,
-        const SizedBox(height: 12),
+        if (quick != null) ...[quick, const SizedBox(height: 12)],
         Expanded(child: wardsCard),
       ],
     );
   }
+}
+
+List<HeltySlideAction> wardCensusSlideActions(
+  BuildContext context, {
+  required VoidCallback onRefresh,
+  required VoidCallback onAwaitingClearance,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return [
+    HeltySlideAction(
+      label: 'Refresh Census',
+      icon: Icons.refresh,
+      colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+      onPressed: onRefresh,
+    ),
+    HeltySlideAction(
+      label: 'Nurses Clearance',
+      icon: Icons.fact_check_outlined,
+      colors: [
+        InpatientMetrics.iconTeal,
+        Color.lerp(InpatientMetrics.iconTeal, cs.primary, 0.25)!,
+      ],
+      onPressed: onAwaitingClearance,
+    ),
+  ];
 }
 
 class _QuickActionsCard extends StatelessWidget {
@@ -195,14 +227,13 @@ class _WardsCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (ward.capacity > 0)
-                      Text(
-                        '${ward.capacity}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    Text(
+                      '${ward.activePatientCount}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
                   ],
                 ),
               ),

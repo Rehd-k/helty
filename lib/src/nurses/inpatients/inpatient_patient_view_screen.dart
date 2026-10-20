@@ -9,6 +9,7 @@ import 'package:helty/src/nurses/inpatients/ward_round_note_draft.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_sidebar.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_ui_tabs.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/patient_header_card.dart';
@@ -272,6 +273,7 @@ class _InpatientPatientViewScreenState
                       final sidebar = InpatientSidebar(
                         admission: _admission,
                         fillHeight: showRail,
+                        showQuickActions: showRail,
                         onLocationUpdated: _loadPatient,
                       );
 
@@ -286,6 +288,19 @@ class _InpatientPatientViewScreenState
                             onOpenTools: mobile
                                 ? () => _openBedsideTools(context)
                                 : null,
+                            onOpenFilters: showRail
+                                ? null
+                                : () => showHeltySlidePanel(
+                                    context: context,
+                                    quickActions: inpatientSlideActions(
+                                      context,
+                                      onSelect: (tab) =>
+                                          InpatientViewScope.of(
+                                            context,
+                                          )?.onSelectTab?.call(tab),
+                                    ),
+                                    below: _slideSidebar(context),
+                                  ),
                           ),
                           SizedBox(height: mobile ? 8 : 10),
                           _buildPatientHeader(context),
@@ -313,19 +328,7 @@ class _InpatientPatientViewScreenState
                         );
                       }
 
-                      if (mobile) return mainColumn;
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(child: mainColumn),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            height: 280,
-                            child: SingleChildScrollView(child: sidebar),
-                          ),
-                        ],
-                      );
+                      return mainColumn;
                     },
                   ),
                   if (draftForChip != null)
@@ -506,12 +509,41 @@ class _InpatientPatientViewScreenState
     );
   }
 
+  Widget _slideSidebar(BuildContext context) {
+    final sidebar = InpatientSidebar(
+      admission: _admission,
+      showQuickActions: false,
+      onLocationUpdated: _loadPatient,
+    );
+    final scope = InpatientViewScope.of(context);
+    if (scope == null) return sidebar;
+    return InpatientViewScope(
+      patientId: scope.patientId,
+      admissionId: scope.admissionId,
+      encounterId: scope.encounterId,
+      embeddedMedicationOrders: scope.embeddedMedicationOrders,
+      patientDisplayName: scope.patientDisplayName,
+      hospitalNumber: scope.hospitalNumber,
+      staffId: scope.staffId,
+      role: scope.role,
+      accountType: scope.accountType,
+      isDoctor: scope.isDoctor,
+      isNurse: scope.isNurse,
+      admissionStatus: scope.admissionStatus,
+      isOutpatient: scope.isOutpatient,
+      readOnly: scope.readOnly,
+      onSelectTab: scope.onSelectTab,
+      child: sidebar,
+    );
+  }
+
   Widget _buildHeaderRow(
     BuildContext context, {
     required bool compact,
     required bool mobile,
     required bool isDoctor,
     VoidCallback? onOpenTools,
+    VoidCallback? onOpenFilters,
   }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -574,6 +606,11 @@ class _InpatientPatientViewScreenState
     ];
 
     final actionChildren = <Widget>[
+      if (onOpenFilters != null)
+        HeltyMobileFiltersButton(
+          onPressed: onOpenFilters,
+          color: InpatientMetrics.iconPurple,
+        ),
       for (final action in menuActions)
         _headerPill(
           label: action.label,

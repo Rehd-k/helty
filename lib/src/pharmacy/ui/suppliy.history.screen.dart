@@ -8,6 +8,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/pharmacy/widgets/pharmacy_page_chrome.dart';
 import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/widgets/date.filter.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -427,19 +428,21 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
             ],
           );
 
+          final clearDrug = _selectedDrug == null
+              ? null
+              : () {
+                  setState(() {
+                    _selectedDrug = null;
+                    _currentPage = 1;
+                  });
+                  _fetchHistory();
+                };
           final rail = _SupplyRail(
             dateLabel:
                 '${DateFormatter.shortDate(_fromDate)} – ${DateFormatter.shortDate(_toDate)}',
             onRefresh: _isLoading ? null : _fetchHistory,
-            onClearDrug: _selectedDrug == null
-                ? null
-                : () {
-                    setState(() {
-                      _selectedDrug = null;
-                      _currentPage = 1;
-                    });
-                    _fetchHistory();
-                  },
+            onClearDrug: clearDrug,
+            showQuickActions: showRail,
           );
 
           if (showRail) {
@@ -452,13 +455,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
               ],
             );
           }
-          return Column(
-            children: [
-              Expanded(child: main),
-              const SizedBox(height: 10),
-              rail,
-            ],
-          );
+          return main;
         },
       ),
     );
@@ -523,8 +520,56 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
   }
 
   Future<void> _openSupplyFilters(bool compact) {
+    final cs = Theme.of(context).colorScheme;
     return showPharmacyFilterDialog(
       context: context,
+      quickActions: heltyUseSlideFilters(context)
+          ? [
+              HeltySlideAction(
+                label: 'Refresh',
+                icon: Icons.refresh,
+                colors: [
+                  PharmacyAccent.green,
+                  Color.lerp(PharmacyAccent.green, cs.primary, 0.25)!,
+                ],
+                onPressed: _isLoading ? null : _fetchHistory,
+              ),
+              HeltySlideAction(
+                label: 'Clear drug',
+                icon: Icons.medication_outlined,
+                colors: [
+                  PharmacyAccent.teal,
+                  Color.lerp(PharmacyAccent.teal, cs.primary, 0.25)!,
+                ],
+                onPressed: _selectedDrug == null
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedDrug = null;
+                          _currentPage = 1;
+                        });
+                        _fetchHistory();
+                      },
+              ),
+            ]
+          : const [],
+      below: heltyUseSlideFilters(context)
+          ? _SupplyRail(
+              dateLabel:
+                  '${DateFormatter.shortDate(_fromDate)} – ${DateFormatter.shortDate(_toDate)}',
+              onRefresh: _isLoading ? null : _fetchHistory,
+              onClearDrug: _selectedDrug == null
+                  ? null
+                  : () {
+                      setState(() {
+                        _selectedDrug = null;
+                        _currentPage = 1;
+                      });
+                      _fetchHistory();
+                    },
+              showQuickActions: false,
+            )
+          : null,
       body: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -992,11 +1037,13 @@ class _SupplyRail extends StatelessWidget {
     required this.dateLabel,
     required this.onRefresh,
     required this.onClearDrug,
+    this.showQuickActions = true,
   });
 
   final String dateLabel;
   final VoidCallback? onRefresh;
   final VoidCallback? onClearDrug;
+  final bool showQuickActions;
 
   @override
   Widget build(BuildContext context) {
@@ -1005,16 +1052,17 @@ class _SupplyRail extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        HeltySurfaceCard(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const HeltySolidIcon(
-                    icon: Icons.flash_on,
-                    color: PharmacyAccent.amber,
+        if (showQuickActions)
+          HeltySurfaceCard(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const HeltySolidIcon(
+                      icon: Icons.flash_on,
+                      color: PharmacyAccent.amber,
                     size: 26,
                     iconSize: 14,
                     radius: 7,

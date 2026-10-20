@@ -40,8 +40,14 @@ subprojects {
             true,
             plugin.javaClass.classLoader,
         ).enumConstants.first { it.toString() == "JVM_17" }
+        // Property.set(T) erases to set(Object). set(Provider) is the other
+        // one-arg overload and throws argument type mismatch for a JvmTarget.
         jvmTarget.javaClass.methods
-            .first { it.name == "set" && it.parameterCount == 1 }
+            .single {
+                it.name == "set" &&
+                    it.parameterCount == 1 &&
+                    it.parameterTypes[0] == Any::class.java
+            }
             .invoke(jvmTarget, jvm17)
     }
 }

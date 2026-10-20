@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/lab/ui/widgets/lab_clinical_ui.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../core/widgets/patient_avatar.dart';
@@ -430,6 +431,10 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
               onRefresh: () => _fetchPatients(reset: true),
               leading: compact ? _statusDropdown(context) : null,
             ),
+            quickActions: showSideBySide ? const [] : _waitingSlideActions(),
+            below: showSideBySide
+                ? null
+                : _buildDetailsPane(fillHeight: false),
           );
 
           final mainColumn = Column(
@@ -460,17 +465,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
             );
           }
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: mainColumn),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 280,
-                child: _buildDetailsPane(fillHeight: false),
-              ),
-            ],
-          );
+          return mainColumn;
         },
       ),
     );
@@ -1105,14 +1100,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
     );
 
     if (!fillHeight) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          actions,
-          const SizedBox(height: 12),
-          SizedBox(height: 220, child: details),
-        ],
-      );
+      return SizedBox(height: 220, child: details);
     }
 
     return Column(
@@ -1123,6 +1111,33 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
         Expanded(child: details),
       ],
     );
+  }
+
+  List<HeltySlideAction> _waitingSlideActions() {
+    final cs = Theme.of(context).colorScheme;
+    return [
+      HeltySlideAction(
+        label: 'Refresh queue',
+        icon: Icons.refresh,
+        colors: [LabClinicalUi.iconBlue, LabClinicalUi.iconIndigo],
+        onPressed: () => _fetchPatients(reset: true),
+      ),
+      if (!_isRegisterUse && !_isNursingQueueUse)
+        HeltySlideAction(
+          label: 'New patient',
+          icon: Icons.person_add_alt_1,
+          colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+          onPressed: () {
+            final use = widget.use.trim().toLowerCase();
+            final service = switch (use) {
+              'radiology' => 'Radiology',
+              'dialysis' => 'dialysis',
+              _ => 'lab',
+            };
+            context.router.push(EnlistPaitientRoute(serviceName: service));
+          },
+        ),
+    ];
   }
 
   Widget _sidebarAction({

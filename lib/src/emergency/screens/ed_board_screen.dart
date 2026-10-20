@@ -327,6 +327,7 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
       onRefresh: () => _load(reset: true),
       canRegister: canRegister,
       fillHeight: fillHeight,
+      showQuickActions: fillHeight,
     );
   }
 
@@ -387,6 +388,18 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
             compact: compact,
             fromDate: _fromDate,
             toDate: _toDate,
+            quickActions: showSideBySide
+                ? const []
+                : edBoardSlideActions(
+                    context,
+                    onRegister: () =>
+                        context.router.push(const EdRegistrationRoute()),
+                    onRefresh: () => _load(reset: true),
+                    canRegister: canRegister,
+                  ),
+            below: showSideBySide
+                ? null
+                : _sidebar(fillHeight: false, canRegister: canRegister),
           );
 
           final mainColumn = Column(
@@ -429,24 +442,7 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
           return LayoutBuilder(
             builder: (context, constraints) {
               final bounded = constraints.maxHeight.isFinite;
-              if (bounded) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: mainColumn),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 280,
-                      child: SingleChildScrollView(
-                        child: _sidebar(
-                          fillHeight: false,
-                          canRegister: canRegister,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }
+              if (bounded) return mainColumn;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -465,8 +461,6 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
                       canDoctor: canDoctor,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  _sidebar(fillHeight: false, canRegister: canRegister),
                 ],
               );
             },
