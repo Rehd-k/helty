@@ -120,6 +120,7 @@ class PayBill extends ConsumerStatefulWidget {
     this.invoiceMaxPayable,
     this.onPaymentComplete,
     this.preserveInvoiceOnDismiss = false,
+    this.initialPaymentMethod,
   });
   final String firstName;
   final String lastName;
@@ -144,6 +145,9 @@ class PayBill extends ConsumerStatefulWidget {
   /// When false (default), closing without paying deletes [invoiceId] (draft checkout).
   /// When true, the invoice is left intact (e.g. existing inpatient / pending invoice).
   final bool preserveInvoiceOnDismiss;
+
+  /// Pre-selects a method such as `wallet` when the pay dialog opens.
+  final String? initialPaymentMethod;
 
   @override
   PayBillState createState() => PayBillState();
@@ -251,6 +255,10 @@ class PayBillState extends ConsumerState<PayBill> {
     _amountToPay = _originalAmount;
     _items = List.of(widget.selectedItems);
     _itemsForPrint = List.of(widget.selectedItems);
+    final initialMethod = widget.initialPaymentMethod?.trim();
+    if (initialMethod != null && _methods.contains(initialMethod)) {
+      _paymentMethod = initialMethod;
+    }
     final displayId = widget.invoiceDisplayId?.trim();
     _invoiceDisplayId = displayId != null && displayId.isNotEmpty
         ? displayId

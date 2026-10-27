@@ -6,30 +6,22 @@ import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-final _ink = PdfColor.fromHex('#334155');
+final _ink = PdfColor.fromHex('#0F172A');
 final _inkStrong = PdfColor.fromHex('#0F172A');
-final _title = PdfColor.fromHex('#1E293B');
-final _muted = PdfColor.fromHex('#64748B');
-final _label = PdfColor.fromHex('#94A3B8');
-final _line = PdfColor.fromHex('#E2E8F0');
-final _bannerFill = PdfColor.fromHex('#EFF6FF');
-final _bannerBorder = PdfColor.fromHex('#DBEAFE');
+final _title = PdfColor.fromHex('#0F172A');
 final _contact = PdfColor.fromHex('#1D4ED8');
-final _cardFill = PdfColor.fromHex('#F8FAFC');
 final _high = PdfColor.fromHex('#DC2626');
 final _highBg = PdfColor.fromHex('#FEE2E2');
 final _accent = PdfColor.fromHex('#1D4ED8');
 final _accentSoft = PdfColor.fromHex('#DBEAFE');
 final _teal = PdfColor.fromHex('#0F766E');
-final _tealSoft = PdfColor.fromHex('#CCFBF1');
 final _violet = PdfColor.fromHex('#6D28D9');
-final _violetSoft = PdfColor.fromHex('#EDE9FE');
 final _amber = PdfColor.fromHex('#B45309');
 final _amberSoft = PdfColor.fromHex('#FFFBEB');
-final _amberLine = PdfColor.fromHex('#FCD34D');
+final _amberLine = PdfColor.fromHex('#B45309');
 
-final _side = pw.BorderSide(color: _line, width: 0.7);
-final _hairlineSide = pw.BorderSide(color: _line, width: 0.4);
+final _side = pw.BorderSide(color: _ink, width: 0.6);
+final _rowLine = pw.BorderSide(color: _ink, width: 0.6);
 
 /// Whether a single result line should appear on a printed report.
 bool _labResultIsPrintable(LabResult r) =>
@@ -44,37 +36,24 @@ typedef _LabPdfEntry = ({LabOrderItem item, String? requisitionShortId});
 class _LabReportFacts {
   const _LabReportFacts({
     required this.patientName,
-    required this.requisitionLabel,
-    required this.requestDate,
-    required this.barcode,
     required this.ageSex,
-    required this.accessionDate,
     required this.collectionDate,
     required this.reportDate,
-    required this.referredBy,
-    required this.patientId,
     required this.qrData,
     required this.generatedLabel,
     required this.entries,
   });
 
   final String patientName;
-  final String requisitionLabel;
-  final String requestDate;
-  final String barcode;
   final String ageSex;
-  final String accessionDate;
   final String collectionDate;
   final String reportDate;
-  final String? referredBy;
-  final String? patientId;
   final String qrData;
   final String generatedLabel;
   final List<_LabPdfEntry> entries;
 
   factory _LabReportFacts.build({
     required LabOrderPatient? patient,
-    required List<LabOrder> orders,
     required List<_LabPdfEntry> entries,
     required String requisitionLabel,
     required DateTime generatedOn,
@@ -84,22 +63,15 @@ class _LabReportFacts {
     final qrData = website.isEmpty
         ? requisitionLabel
         : '$website\n$requisitionLabel';
-    final patientId = patient?.patientId?.trim();
     return _LabReportFacts(
       patientName: _patientName(patient),
-      requisitionLabel: requisitionLabel,
-      requestDate: _formatDates(orders.map((order) => order.createdAt)),
-      barcode: _barcodeLabel(entries.map((entry) => entry.item)),
       ageSex: _ageSex(patient),
-      accessionDate: _formatDates(orders.map((order) => order.createdAt)),
       collectionDate: _formatDates(
         entries.map((entry) => entry.item.sample?.collectionTime),
       ),
-      reportDate: DateFormatter.dateTime24(generatedOn),
-      referredBy: _referredBy(orders.map((order) => order.doctor)),
-      patientId: patientId == null || patientId.isEmpty ? null : patientId,
+      reportDate: DateFormatter.dateTime(generatedOn),
       qrData: qrData,
-      generatedLabel: DateFormatter.dateTime24(generatedOn),
+      generatedLabel: DateFormatter.dateTime(generatedOn),
       entries: entries,
     );
   }
@@ -114,11 +86,11 @@ String _labOrderShortId(String id) => id.length > 8 ? id.substring(0, 8) : id;
 
 String _patientName(LabOrderPatient? patient) {
   if (patient == null) return 'N/A';
-  if (patient.capitalizedDisplayName.trim().isNotEmpty) {
-    return patient.capitalizedDisplayName.trim();
-  }
-  if (patient.displayName.trim().isNotEmpty) return patient.displayName.trim();
-  return 'N/A';
+  final name = patient.capitalizedDisplayName.trim().isNotEmpty
+      ? patient.capitalizedDisplayName.trim()
+      : patient.displayName.trim();
+  if (name.isEmpty) return 'N/A';
+  return name.toUpperCase();
 }
 
 String _formatDates(Iterable<DateTime?> dates) {
@@ -126,19 +98,8 @@ String _formatDates(Iterable<DateTime?> dates) {
   final seen = <String>{};
   for (final date in dates) {
     if (date == null) continue;
-    final label = DateFormatter.dateTime24(date);
+    final label = DateFormatter.dateTime(date);
     if (seen.add(label)) labels.add(label);
-  }
-  return labels.isEmpty ? '-' : labels.join(', ');
-}
-
-String _barcodeLabel(Iterable<LabOrderItem> items) {
-  final labels = <String>[];
-  final seen = <String>{};
-  for (final item in items) {
-    final code = item.sample?.barcode?.trim();
-    if (code == null || code.isEmpty) continue;
-    if (seen.add(code)) labels.add(code);
   }
   return labels.isEmpty ? '-' : labels.join(', ');
 }
@@ -168,21 +129,6 @@ String? _shortSex(String? raw) {
     default:
       return value;
   }
-}
-
-String? _referredBy(Iterable<LabOrderStaff?> doctors) {
-  final names = <String>[];
-  final seen = <String>{};
-  for (final doctor in doctors) {
-    if (doctor == null || !doctor.isPhysician) continue;
-    final name = doctor.capitalizedDisplayName.trim().isNotEmpty
-        ? doctor.capitalizedDisplayName.trim()
-        : doctor.displayName.trim();
-    if (name.isEmpty || !seen.add(name)) continue;
-    names.add(name);
-  }
-  if (names.isEmpty) return null;
-  return names.join(', ');
 }
 
 String _referenceLine(LabTestField? field, ReferenceEvaluation? eval) {
@@ -290,7 +236,7 @@ pw.Widget _reportHeader(pw.ImageProvider logo) {
                     org.name,
                     textAlign: pw.TextAlign.right,
                     style: pw.TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
                       color: _title,
                     ),
@@ -301,8 +247,9 @@ pw.Widget _reportHeader(pw.ImageProvider logo) {
                       address,
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
-                        fontSize: 8,
-                        color: _muted,
+                        fontSize: 9,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _ink,
                         lineSpacing: 1.3,
                       ),
                     ),
@@ -313,7 +260,7 @@ pw.Widget _reportHeader(pw.ImageProvider logo) {
                       contact,
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
-                        fontSize: 8,
+                        fontSize: 9,
                         color: _contact,
                         fontWeight: pw.FontWeight.bold,
                       ),
@@ -334,8 +281,7 @@ pw.Widget _reportHeader(pw.ImageProvider logo) {
 }
 
 pw.Widget _taglineStrip(List<String> taglines) {
-  final fills = [_accentSoft, _tealSoft, _violetSoft, _amberSoft];
-  final inks = [_accent, _teal, _violet, _amber];
+  final fills = [_accent, _teal, _violet, _amber];
   return pw.Wrap(
     spacing: 6,
     runSpacing: 4,
@@ -350,9 +296,9 @@ pw.Widget _taglineStrip(List<String> taglines) {
           child: pw.Text(
             taglines[i],
             style: pw.TextStyle(
-              fontSize: 7.5,
+              fontSize: 8,
               fontWeight: pw.FontWeight.bold,
-              color: inks[i % inks.length],
+              color: PdfColors.white,
             ),
           ),
         ),
@@ -361,27 +307,26 @@ pw.Widget _taglineStrip(List<String> taglines) {
 }
 
 pw.Widget _sectionRule() {
-  return pw.Container(height: 0.6, color: PdfColor.fromHex('#EEEEEE'));
+  return pw.Container(height: 0.6, color: _ink);
 }
 
-pw.Widget _labeledValue(String label, String value) {
+pw.Widget _compactField(String label, String value) {
   return pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
       pw.Text(
         label.toUpperCase(),
         style: pw.TextStyle(
-          fontSize: 7,
+          fontSize: 8,
           fontWeight: pw.FontWeight.bold,
-          color: _label,
-          letterSpacing: 0.4,
+          color: _ink,
         ),
       ),
-      pw.SizedBox(height: 2),
-      pw.Text(
+      pw.SizedBox(height: 1),
+      _wordWrapText(
         value,
         style: pw.TextStyle(
-          fontSize: 9.5,
+          fontSize: 9,
           fontWeight: pw.FontWeight.bold,
           color: _ink,
         ),
@@ -390,94 +335,25 @@ pw.Widget _labeledValue(String label, String value) {
   );
 }
 
-pw.Widget _requisitionBanner(_LabReportFacts facts) {
-  return pw.Container(
-    margin: const pw.EdgeInsets.only(top: 14, bottom: 4),
-    padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    decoration: pw.BoxDecoration(
-      color: _bannerFill,
-      borderRadius: pw.BorderRadius.circular(8),
-      border: pw.Border.all(color: _bannerBorder, width: 0.8),
-    ),
+pw.Widget _patientStrip(_LabReportFacts facts) {
+  return pw.Padding(
+    padding: const pw.EdgeInsets.only(top: 6, bottom: 2),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
+        pw.Expanded(flex: 3, child: _compactField('Name', facts.patientName)),
+        pw.SizedBox(width: 10),
+        pw.Expanded(flex: 2, child: _compactField('Age / Sex', facts.ageSex)),
+        pw.SizedBox(width: 10),
         pw.Expanded(
-          child: _labeledValue('Requisition Number', facts.requisitionLabel),
+          flex: 3,
+          child: _compactField('Collection Date', facts.collectionDate),
         ),
-        pw.SizedBox(width: 16),
-        pw.Expanded(child: _labeledValue('Request Date', facts.requestDate)),
-      ],
-    ),
-  );
-}
-
-pw.Widget _infoPair(
-  String leftLabel,
-  String leftValue,
-  String rightLabel,
-  String rightValue,
-) {
-  return pw.Padding(
-    padding: const pw.EdgeInsets.only(bottom: 10),
-    child: pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Expanded(child: _labeledValue(leftLabel, leftValue)),
-        pw.SizedBox(width: 18),
-        pw.Expanded(child: _labeledValue(rightLabel, rightValue)),
-      ],
-    ),
-  );
-}
-
-pw.Widget _patientGrid(_LabReportFacts facts) {
-  final extra = <pw.Widget>[];
-  if (facts.referredBy != null && facts.patientId != null) {
-    extra.add(
-      _infoPair(
-        'Referred By',
-        facts.referredBy!,
-        'Patient ID',
-        facts.patientId!,
-      ),
-    );
-  } else if (facts.referredBy != null || facts.patientId != null) {
-    extra.add(
-      pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 10),
-        child: _labeledValue(
-          facts.referredBy == null ? 'Patient ID' : 'Referred By',
-          facts.referredBy ?? facts.patientId!,
+        pw.SizedBox(width: 10),
+        pw.Expanded(
+          flex: 4,
+          child: _compactField('Reporting Date & Time', facts.reportDate),
         ),
-      ),
-    );
-  }
-
-  return pw.Padding(
-    padding: const pw.EdgeInsets.only(top: 12),
-    child: pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        _infoPair(
-          'Patient Name',
-          facts.patientName,
-          'Barcode Number',
-          facts.barcode,
-        ),
-        _infoPair(
-          'Age / Sex',
-          facts.ageSex,
-          'Accession Date & Time',
-          facts.accessionDate,
-        ),
-        _infoPair(
-          'Collection Date',
-          facts.collectionDate,
-          'Report Date & Time',
-          facts.reportDate,
-        ),
-        ...extra,
       ],
     ),
   );
@@ -488,42 +364,31 @@ pw.Widget _categoryBanner(String title, String? requisitionShortId) {
     margin: const pw.EdgeInsets.only(top: 14),
     padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     decoration: pw.BoxDecoration(
-      color: _accentSoft,
+      color: _accent,
       borderRadius: const pw.BorderRadius.vertical(top: pw.Radius.circular(8)),
-      border: pw.Border.all(color: PdfColor.fromHex('#BFDBFE'), width: 0.8),
+      border: pw.Border.all(color: _ink, width: 0.6),
     ),
     child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Row(
-          children: [
-            pw.Container(
-              width: 4,
-              height: 14,
-              decoration: pw.BoxDecoration(
-                color: _accent,
-                borderRadius: pw.BorderRadius.circular(2),
-              ),
-            ),
-            pw.SizedBox(width: 8),
-            pw.Expanded(
-              child: pw.Text(
-                title,
-                style: pw.TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColor.fromHex('#1E3A8A'),
-                ),
-              ),
-            ),
-          ],
+        pw.Text(
+          title,
+          style: pw.TextStyle(
+            fontSize: 12,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.white,
+          ),
         ),
         if (requisitionShortId != null)
           pw.Padding(
             padding: const pw.EdgeInsets.only(top: 2),
             child: pw.Text(
               'Requisition #$requisitionShortId',
-              style: pw.TextStyle(fontSize: 7.5, color: _muted),
+              style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              ),
             ),
           ),
       ],
@@ -555,9 +420,9 @@ pw.Widget _openPanel(String message, {required bool closeBottom}) {
     child: pw.Text(
       message,
       style: pw.TextStyle(
-        fontSize: 8.5,
-        color: _muted,
-        fontStyle: pw.FontStyle.italic,
+        fontSize: 12,
+        fontWeight: pw.FontWeight.bold,
+        color: _ink,
         lineSpacing: 1.25,
       ),
     ),
@@ -570,7 +435,32 @@ pw.TableBorder _tableBorder({required bool closeBottom}) {
     right: _side,
     top: pw.BorderSide.none,
     bottom: closeBottom ? _side : pw.BorderSide.none,
-    horizontalInside: _hairlineSide,
+    horizontalInside: _rowLine,
+  );
+}
+
+pw.Widget _wordWrapText(
+  String text, {
+  pw.TextStyle? style,
+  pw.TextAlign align = pw.TextAlign.left,
+}) {
+  final words = text
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .toList();
+  final alignment = switch (align) {
+    pw.TextAlign.right => pw.WrapAlignment.end,
+    pw.TextAlign.center => pw.WrapAlignment.center,
+    _ => pw.WrapAlignment.start,
+  };
+  if (words.isEmpty) {
+    return pw.Text('', style: style, textAlign: align);
+  }
+  return pw.Wrap(
+    alignment: alignment,
+    spacing: 3,
+    runSpacing: 1,
+    children: [for (final word in words) pw.Text(word, style: style)],
   );
 }
 
@@ -581,9 +471,15 @@ pw.Widget _paddedText(
 }) {
   return pw.Padding(
     padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    child: pw.Text(text, textAlign: align, style: style),
+    child: _wordWrapText(text, style: style, align: align),
   );
 }
+
+pw.TextStyle get _tableHeaderStyle => pw.TextStyle(
+  fontSize: 11,
+  fontWeight: pw.FontWeight.bold,
+  color: PdfColors.white,
+);
 
 pw.Widget _resultsTable({
   required List<LabResult> reportResults,
@@ -593,41 +489,20 @@ pw.Widget _resultsTable({
   return pw.Table(
     border: _tableBorder(closeBottom: closeBottom),
     columnWidths: const {
-      0: pw.FlexColumnWidth(3),
-      1: pw.FlexColumnWidth(1),
-      2: pw.FlexColumnWidth(2),
+      0: pw.FlexColumnWidth(2.2),
+      1: pw.FlexColumnWidth(4.5),
+      2: pw.FlexColumnWidth(1.8),
     },
     children: [
       pw.TableRow(
-        decoration: pw.BoxDecoration(color: _tealSoft),
+        decoration: pw.BoxDecoration(color: _teal),
         children: [
-          _paddedText(
-            'TEST',
-            style: pw.TextStyle(
-              fontSize: 7,
-              fontWeight: pw.FontWeight.bold,
-              color: _teal,
-              letterSpacing: 0.5,
-            ),
-          ),
-          _paddedText(
-            'RESULT',
-            style: pw.TextStyle(
-              fontSize: 7,
-              fontWeight: pw.FontWeight.bold,
-              color: _teal,
-              letterSpacing: 0.5,
-            ),
-          ),
+          _paddedText('TEST', style: _tableHeaderStyle),
+          _paddedText('RESULT', style: _tableHeaderStyle),
           _paddedText(
             'REFERENCE',
             align: pw.TextAlign.right,
-            style: pw.TextStyle(
-              fontSize: 7,
-              fontWeight: pw.FontWeight.bold,
-              color: _teal,
-              letterSpacing: 0.5,
-            ),
+            style: _tableHeaderStyle,
           ),
         ],
       ),
@@ -654,7 +529,7 @@ pw.TableRow _resultRow(LabResult result, LabTestField? mappedField) {
       _paddedText(
         field?.label ?? result.fieldId,
         style: pw.TextStyle(
-          fontSize: 9,
+          fontSize: 12,
           fontWeight: pw.FontWeight.bold,
           color: outOfRange ? _high : _inkStrong,
         ),
@@ -664,11 +539,11 @@ pw.TableRow _resultRow(LabResult result, LabTestField? mappedField) {
         child: pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Flexible(
-              child: pw.Text(
+            pw.Expanded(
+              child: _wordWrapText(
                 result.value,
                 style: pw.TextStyle(
-                  fontSize: 9.5,
+                  fontSize: 13,
                   fontWeight: pw.FontWeight.bold,
                   color: resultColor,
                 ),
@@ -689,7 +564,7 @@ pw.TableRow _resultRow(LabResult result, LabTestField? mappedField) {
                 child: pw.Text(
                   flag,
                   style: pw.TextStyle(
-                    fontSize: 7,
+                    fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
                     color: resultColor,
                   ),
@@ -702,7 +577,11 @@ pw.TableRow _resultRow(LabResult result, LabTestField? mappedField) {
       _paddedText(
         _referenceLine(field, eval),
         align: pw.TextAlign.right,
-        style: pw.TextStyle(fontSize: 8, color: _muted),
+        style: pw.TextStyle(
+          fontSize: 12,
+          fontWeight: pw.FontWeight.bold,
+          color: _ink,
+        ),
       ),
     ],
   );
@@ -715,9 +594,9 @@ pw.Widget _scientistNotesPanel(String notes) {
     decoration: pw.BoxDecoration(
       color: _amberSoft,
       border: pw.Border(
-        left: pw.BorderSide(color: _amberLine, width: 0.8),
-        right: pw.BorderSide(color: _amberLine, width: 0.8),
-        bottom: pw.BorderSide(color: _amberLine, width: 0.8),
+        left: pw.BorderSide(color: _amberLine, width: 0.6),
+        right: pw.BorderSide(color: _amberLine, width: 0.6),
+        bottom: pw.BorderSide(color: _amberLine, width: 0.6),
       ),
     ),
     child: pw.Column(
@@ -726,16 +605,19 @@ pw.Widget _scientistNotesPanel(String notes) {
         pw.Text(
           'SCIENTIST NOTES',
           style: pw.TextStyle(
-            fontSize: 7,
+            fontSize: 11,
             fontWeight: pw.FontWeight.bold,
-            color: _amber,
-            letterSpacing: 0.5,
+            color: _ink,
           ),
         ),
         pw.SizedBox(height: 3),
-        pw.Text(
+        _wordWrapText(
           notes,
-          style: pw.TextStyle(fontSize: 9, color: _ink, lineSpacing: 1.3),
+          style: pw.TextStyle(
+            fontSize: 12,
+            fontWeight: pw.FontWeight.bold,
+            color: _ink,
+          ),
         ),
       ],
     ),
@@ -751,29 +633,16 @@ List<pw.Widget> _astWidgets(LabOrderItem item, {required bool closeBottom}) {
   return [
     pw.Table(
       border: _tableBorder(closeBottom: closeBottom),
-      columnWidths: const {0: pw.FlexColumnWidth(3), 1: pw.FlexColumnWidth(2)},
+      columnWidths: const {0: pw.FlexColumnWidth(2), 1: pw.FlexColumnWidth(3)},
       children: [
         pw.TableRow(
-          decoration: pw.BoxDecoration(color: _cardFill),
+          decoration: pw.BoxDecoration(color: _teal),
           children: [
-            _paddedText(
-              'ANTIBIOTIC',
-              style: pw.TextStyle(
-                fontSize: 7,
-                fontWeight: pw.FontWeight.bold,
-                color: _muted,
-                letterSpacing: 0.4,
-              ),
-            ),
+            _paddedText('ANTIBIOTIC', style: _tableHeaderStyle),
             _paddedText(
               'RESULT',
               align: pw.TextAlign.right,
-              style: pw.TextStyle(
-                fontSize: 7,
-                fontWeight: pw.FontWeight.bold,
-                color: _muted,
-                letterSpacing: 0.4,
-              ),
+              style: _tableHeaderStyle,
             ),
           ],
         ),
@@ -790,16 +659,17 @@ List<pw.Widget> _astWidgets(LabOrderItem item, {required bool closeBottom}) {
             children: [
               _paddedText(
                 name,
-                style: const pw.TextStyle(
-                  fontSize: 9,
-                  color: PdfColors.grey900,
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                  color: _ink,
                 ),
               ),
               _paddedText(
                 label,
                 align: pw.TextAlign.right,
                 style: pw.TextStyle(
-                  fontSize: 9,
+                  fontSize: 13,
                   fontWeight: pw.FontWeight.bold,
                   color: _ink,
                 ),
@@ -844,24 +714,28 @@ pw.Widget _signatureBlock(String title) {
       children: [
         pw.Text(
           'Signature',
-          style: pw.TextStyle(fontSize: 7.5, color: _muted, letterSpacing: 0.4),
+          style: pw.TextStyle(
+            fontSize: 9,
+            fontWeight: pw.FontWeight.bold,
+            color: _ink,
+          ),
         ),
         pw.SizedBox(height: 6),
         pw.Container(
           height: 46,
           decoration: pw.BoxDecoration(
             borderRadius: pw.BorderRadius.circular(6),
-            border: pw.Border.all(color: _line, width: 0.7),
+            border: pw.Border.all(color: _ink, width: 0.6),
           ),
         ),
         pw.SizedBox(height: 8),
-        pw.Container(height: 1, color: _inkStrong),
+        pw.Container(height: 0.6, color: _inkStrong),
         pw.SizedBox(height: 6),
         pw.Text(
           title,
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(
-            fontSize: 9,
+            fontSize: 11,
             fontWeight: pw.FontWeight.bold,
             color: _inkStrong,
           ),
@@ -872,14 +746,18 @@ pw.Widget _signatureBlock(String title) {
 }
 
 pw.Widget _signatureSection() {
+  final showHod = !OrgConfig.instance.taglinesFromEnv;
   return pw.Padding(
     padding: const pw.EdgeInsets.only(top: 28),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         _signatureBlock('Med Lab Scientist'),
-        pw.SizedBox(width: 28),
-        _signatureBlock('HOD Med Lab'),
+        if (showHod) ...[
+          pw.SizedBox(width: 28),
+          _signatureBlock('HOD Med Lab'),
+        ] else
+          pw.Expanded(child: pw.SizedBox()),
       ],
     ),
   );
@@ -894,9 +772,9 @@ pw.Widget _endOfReport(String qrData) {
           'End of Report',
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(
-            fontSize: 10,
-            color: _muted,
-            fontStyle: pw.FontStyle.italic,
+            fontSize: 12,
+            fontWeight: pw.FontWeight.bold,
+            color: _ink,
           ),
         ),
         pw.SizedBox(height: 10),
@@ -919,27 +797,15 @@ pw.Widget _continuationHeader(_LabReportFacts facts) {
     margin: const pw.EdgeInsets.only(bottom: 8),
     padding: const pw.EdgeInsets.only(bottom: 6),
     decoration: pw.BoxDecoration(
-      border: pw.Border(bottom: pw.BorderSide(color: _line, width: 0.6)),
+      border: pw.Border(bottom: pw.BorderSide(color: _ink, width: 0.6)),
     ),
-    child: pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      children: [
-        pw.Expanded(
-          child: pw.Text(
-            facts.patientName,
-            style: pw.TextStyle(
-              fontSize: 9,
-              fontWeight: pw.FontWeight.bold,
-              color: _inkStrong,
-            ),
-          ),
-        ),
-        pw.SizedBox(width: 12),
-        pw.Text(
-          facts.requisitionLabel,
-          style: pw.TextStyle(fontSize: 8, color: _muted),
-        ),
-      ],
+    child: pw.Text(
+      facts.patientName,
+      style: pw.TextStyle(
+        fontSize: 11,
+        fontWeight: pw.FontWeight.bold,
+        color: _inkStrong,
+      ),
     ),
   );
 }
@@ -949,7 +815,7 @@ pw.Widget _pageFooter(String generatedStr, pw.Context context) {
     margin: const pw.EdgeInsets.only(top: 10),
     padding: const pw.EdgeInsets.only(top: 8),
     decoration: pw.BoxDecoration(
-      border: pw.Border(top: pw.BorderSide(color: _line, width: 0.6)),
+      border: pw.Border(top: pw.BorderSide(color: _ink, width: 0.6)),
     ),
     child: pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -957,12 +823,20 @@ pw.Widget _pageFooter(String generatedStr, pw.Context context) {
         pw.Expanded(
           child: pw.Text(
             'Confidential medical record - ${OrgConfig.instance.name}',
-            style: pw.TextStyle(fontSize: 7, color: _muted),
+            style: pw.TextStyle(
+              fontSize: 8,
+              fontWeight: pw.FontWeight.bold,
+              color: _ink,
+            ),
           ),
         ),
         pw.Text(
           'Page ${context.pageNumber} of ${context.pagesCount} | $generatedStr',
-          style: pw.TextStyle(fontSize: 7.5, color: _muted),
+          style: pw.TextStyle(
+            fontSize: 8,
+            fontWeight: pw.FontWeight.bold,
+            color: _ink,
+          ),
         ),
       ],
     ),
@@ -988,8 +862,7 @@ Future<List<int>> _saveLabReportPdf({
       build: (context) => [
         _reportHeader(logo),
         _sectionRule(),
-        _requisitionBanner(facts),
-        _patientGrid(facts),
+        _patientStrip(facts),
         ...facts.entries.expand(_categoryWidgets),
         _signatureSection(),
         _endOfReport(facts.qrData),
@@ -1007,7 +880,6 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
     format: format,
     facts: _LabReportFacts.build(
       patient: order.patient,
-      orders: [order],
       entries: [
         for (final item in order.items) (item: item, requisitionShortId: null),
       ],
@@ -1028,12 +900,10 @@ Future<List<int>> buildLabPatientItemsPdf({
       .toList();
   if (printable.isEmpty) return [];
 
-  final orders = <LabOrder>[];
   final seenOrderIds = <String>{};
   final requisitionLabels = <String>[];
   for (final entry in printable) {
     if (!seenOrderIds.add(entry.order.id)) continue;
-    orders.add(entry.order);
     requisitionLabels.add('#${_labOrderShortId(entry.order.id)}');
   }
   final showOrderRef = seenOrderIds.length > 1;
@@ -1042,7 +912,6 @@ Future<List<int>> buildLabPatientItemsPdf({
     format: format,
     facts: _LabReportFacts.build(
       patient: patient,
-      orders: orders,
       entries: [
         for (final entry in printable)
           (

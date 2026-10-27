@@ -15,6 +15,7 @@ class OrgConfig {
     required this.website,
     required this.apiBaseUrl,
     required this.taglines,
+    required this.taglinesFromEnv,
     required this.logoAsset,
   });
 
@@ -30,6 +31,10 @@ class OrgConfig {
   final String website;
   final String apiBaseUrl;
   final List<String> taglines;
+
+  /// True only when `.env` sets a non-empty `ORG_TAGLINES`.
+  /// Built-in default taglines do not count.
+  final bool taglinesFromEnv;
 
   /// Flutter asset path for the org logo on PDFs, receipts, and watermark.
   /// Set via `ORG_LOGO` in `.env` (e.g. `assets/imsh.png`).
@@ -62,6 +67,7 @@ class OrgConfig {
           'Pap Smear',
           'ECG',
         ],
+        taglinesFromEnv: false,
         logoAsset: 'assets/imsh.png',
       );
 
@@ -90,6 +96,7 @@ class OrgConfig {
       website: _string('ORG_WEBSITE', d.website),
       apiBaseUrl: _string('API_BASE_URL', d.apiBaseUrl),
       taglines: _list('ORG_TAGLINES', d.taglines),
+      taglinesFromEnv: _envListIsSet('ORG_TAGLINES'),
       logoAsset: _string('ORG_LOGO', d.logoAsset),
     );
   }
@@ -109,6 +116,13 @@ class OrgConfig {
         .where((e) => e.isNotEmpty)
         .toList();
     return parts.isEmpty ? fallback : parts;
+  }
+
+  /// Whether [key] is present in `.env` with at least one non-empty part.
+  static bool _envListIsSet(String key) {
+    final raw = dotenv.maybeGet(key)?.trim();
+    if (raw == null || raw.isEmpty) return false;
+    return raw.split(';').any((part) => part.trim().isNotEmpty);
   }
 
   @visibleForTesting

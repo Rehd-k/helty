@@ -369,16 +369,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   void _openPaymentDialog(Map<String, dynamic> transaction) {
-    showDialog<Map<String, dynamic>>(
+    showDialog<bool>(
       context: context,
       builder: (_) => ChangePaymentDialog(transaction: transaction),
-    ).then((result) {
-      if (result != null && mounted) {
+    ).then((updated) {
+      if (updated == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Payment of ${(result['totalPaid'] as double).toFinancial(isMoney: true)} recorded.',
-            ),
+            content: const Text('Payment method updated.'),
             backgroundColor: FinanceStatusColors.success(
               Theme.of(context).colorScheme,
             ),

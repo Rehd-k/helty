@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/billings/billing_leave_guard.dart';
 import 'package:helty/src/billings/inpatient_charge_models.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/discount_policy_models.dart';
@@ -25,9 +26,12 @@ import 'package:helty/src/admissions/discharge_admission_dialog.dart';
 import 'package:helty/src/purchases/models/purchases_model.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
+import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 import 'package:helty/src/wallet/wallet_providers.dart';
+import 'package:helty/src/widgets/helty_slide_panel.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
@@ -37,6 +41,20 @@ String catalogServiceUuid(ServiceModel s) {
   if (id.isNotEmpty) return id;
   return s.serviceId.trim();
 }
+
+const _billCardBreakpoint = 768.0;
+const _billPageSize = 20;
+
+const _accentBlue = Color(0xFF2563EB);
+const _accentTeal = Color(0xFF0D9488);
+const _accentPurple = Color(0xFF7C3AED);
+const _accentPink = Color(0xFFDB2777);
+const _accentIndigo = Color(0xFF4F46E5);
+const _accentGreen = Color(0xFF16A34A);
+const _accentAmber = Color(0xFFEA580C);
+const _accentRed = Color(0xFFDC2626);
+
+enum _InvoicePdfLayout { summary, itemized }
 
 // ==========================================
 // 1. MODELS (Mock Data Structures)
@@ -85,8 +103,9 @@ class PatientBillingScreen extends ConsumerStatefulWidget {
 }
 
 class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
+  late AnimationController _fabController;
   final AdmissionService _admissionService = AdmissionService();
   final InvoiceService _invoiceService = InvoiceService();
 
@@ -103,27 +122,55 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   bool _refundRequestsLoading = false;
   String? _refundRequestsError;
   bool _deletingInvoice = false;
+  bool _allowRouteLeave = false;
+  bool _leaveCheckOpen = false;
   final Set<String> _deletingLineIds = {};
   final Set<String> _replacingRecurringLineIds = {};
+  final TextEditingController _lineSearchCtrl = TextEditingController();
+  String _lineQuery = '';
+  String _categoryFilter = 'all';
+  String _settlementFilter = 'all';
+  int _listSkip = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
+    _fabController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _lineSearchCtrl.addListener(_onLineSearchChanged);
+    BillingLeaveGate.instance.register(_confirmLeave);
     _loadBillingData();
   }
 
+  void _onLineSearchChanged() {
+    final q = _lineSearchCtrl.text.trim().toLowerCase();
+    if (q == _lineQuery) return;
+    setState(() {
+      _lineQuery = q;
+      _listSkip = 0;
+    });
+  }
+
   void _onTabChanged() {
-    if (!_tabController.indexIsChanging && _tabController.index == 2) {
+    if (!mounted || _tabController.indexIsChanging) return;
+    setState(() => _listSkip = 0);
+    if (_tabController.index == 2) {
       _loadRefundRequests();
     }
   }
 
   @override
   void dispose() {
+    BillingLeaveGate.instance.unregister(_confirmLeave);
+    _lineSearchCtrl.removeListener(_onLineSearchChanged);
+    _lineSearchCtrl.dispose();
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
+    _fabController.dispose();
     super.dispose();
   }
 
@@ -175,7 +222,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
-        if (mounted) context.router.maybePop();
+        if (mounted) _leaveBillingScreen();
       } else {
         ScaffoldMessenger.of(
           context,
@@ -274,7 +321,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invoice deleted successfully')),
       );
-      context.router.maybePop();
+      _leaveBillingScreen();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -349,16 +396,6 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     }
   }
 
-  Future<void> _handleLineRefundAction(BillingInvoiceItem line) async {
-    final staff = ref.read(authProvider).staff;
-    if (line.refundPending &&
-        canCancelInvoiceItemRefundRequest(staff, line.activeRefundRequest)) {
-      await _cancelRefundRequest(line);
-    } else if (invoiceLineEligibleForRefundRequest(line)) {
-      await _submitRefundRequest(line);
-    }
-  }
-
   Future<void> _loadBillingData() async {
     final id = widget.invoiceId.trim();
     if (id.isEmpty) {
@@ -424,6 +461,95 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
+  Future<_InvoicePdfLayout?> _chooseInvoicePdfLayout({
+    required String title,
+  }) {
+    final width = MediaQuery.sizeOf(context).width;
+    final maxWidth = width - 32 < 560 ? width - 32 : 560.0;
+    return showDialog<_InvoicePdfLayout>(
+      context: context,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const HeltySolidIcon(
+                        icon: Icons.picture_as_pdf_outlined,
+                        color: _accentIndigo,
+                        size: 32,
+                        iconSize: 16,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text(
+                      'Choose a category summary, or the full itemized bill.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    leading: const HeltySolidIcon(
+                      icon: Icons.summarize_outlined,
+                      color: _accentBlue,
+                      size: 32,
+                      iconSize: 16,
+                    ),
+                    title: const Text('Summary'),
+                    subtitle: const Text(
+                      'Category totals and total paid',
+                    ),
+                    onTap: () =>
+                        Navigator.of(ctx).pop(_InvoicePdfLayout.summary),
+                  ),
+                  ListTile(
+                    leading: const HeltySolidIcon(
+                      icon: Icons.receipt_long_outlined,
+                      color: _accentTeal,
+                      size: 32,
+                      iconSize: 16,
+                    ),
+                    title: const Text('Itemized'),
+                    subtitle: const Text(
+                      'Every charge line, as shown on this bill',
+                    ),
+                    onTap: () =>
+                        Navigator.of(ctx).pop(_InvoicePdfLayout.itemized),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _printInvoice({
     required String patientDisplayId,
     required String invoiceDisplayId,
@@ -433,6 +559,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double totalPayments,
     required double balanceDue,
     required double walletBalance,
+    required bool itemized,
   }) async {
     await Printing.layoutPdf(
       onLayout: (format) async {
@@ -446,6 +573,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           totalPayments: totalPayments,
           balanceDue: balanceDue,
           walletBalance: walletBalance,
+          itemized: itemized,
         );
         return Uint8List.fromList(bytes);
       },
@@ -461,6 +589,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double totalPayments,
     required double balanceDue,
     required double walletBalance,
+    required bool itemized,
   }) async {
     final bytes = await buildInpatientInvoicePdf(
       format: PdfPageFormat.a4,
@@ -472,10 +601,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       totalPayments: totalPayments,
       balanceDue: balanceDue,
       walletBalance: walletBalance,
+      itemized: itemized,
     );
+    final kind = itemized ? 'itemized' : 'summary';
     await Printing.sharePdf(
       bytes: Uint8List.fromList(bytes),
-      filename: 'inpatient_invoice_$invoiceDisplayId.pdf',
+      filename: 'inpatient_invoice_${invoiceDisplayId}_$kind.pdf',
     );
   }
 
@@ -492,161 +623,35 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return b.difference(a).inDays + 1;
   }
 
-  String _chargeLinePaymentSummary(ChargeItem item, BillingInvoiceItem? line) {
-    final paid =
-        'Paid ${item.amountPaid.toFinancial(isMoney: true)} / ${item.displayLineTotal.toFinancial(isMoney: true)}';
-    if (line != null && line.lineCovered > 0.001) {
-      return '$paid · Covered ${line.lineCovered.toFinancial(isMoney: true)} · Due ${line.lineAmountDue.toFinancial(isMoney: true)}';
+  /// Days actually consumed across usage segments, merging overlaps.
+  int _usedDays(BillingInvoiceItem line) {
+    final now = _dateOnlyLocal(DateTime.now());
+    final ranges = <(DateTime, DateTime)>[];
+    for (final segment in line.usageSegments) {
+      final startAt = segment.startAt;
+      if (startAt == null) continue;
+      final start = _dateOnlyLocal(startAt);
+      final end = segment.endAt == null ? now : _dateOnlyLocal(segment.endAt!);
+      if (end.isBefore(start)) continue;
+      ranges.add((start, end));
     }
-    return paid;
-  }
-
-  Widget _chargeLineKindBadge(BillingInvoiceItem line, ThemeData theme) {
-    final cs = theme.colorScheme;
-    if (line.isDrugLine) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Chip(
-          avatar: Icon(
-            Icons.medication_outlined,
-            size: 16,
-            color: cs.onSecondaryContainer,
-          ),
-          label: Text(
-            'Pharmacy',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSecondaryContainer,
-            ),
-          ),
-          backgroundColor: cs.secondaryContainer,
-          side: BorderSide.none,
-          visualDensity: VisualDensity.compact,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-        ),
-      );
+    if (ranges.isEmpty) return 0;
+    ranges.sort((a, b) => a.$1.compareTo(b.$1));
+    var cursor = ranges.first.$1;
+    var until = ranges.first.$2;
+    var days = 0;
+    for (final range in ranges.skip(1)) {
+      final nextStart = range.$1;
+      if (!nextStart.isAfter(until.add(const Duration(days: 1)))) {
+        if (range.$2.isAfter(until)) until = range.$2;
+      } else {
+        days += until.difference(cursor).inDays + 1;
+        cursor = nextStart;
+        until = range.$2;
+      }
     }
-    if (line.isPurchaseItemLine) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Chip(
-          avatar: Icon(
-            Icons.inventory_2_outlined,
-            size: 16,
-            color: cs.onTertiaryContainer,
-          ),
-          label: Text(
-            'Supplies',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onTertiaryContainer,
-            ),
-          ),
-          backgroundColor: cs.tertiaryContainer,
-          side: BorderSide.none,
-          visualDensity: VisualDensity.compact,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-        ),
-      );
-    }
-    if (line.isConsumableLine) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Chip(
-          avatar: Icon(
-            Icons.medical_services_outlined,
-            size: 16,
-            color: cs.onSecondaryContainer,
-          ),
-          label: Text(
-            'Consumable',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSecondaryContainer,
-            ),
-          ),
-          backgroundColor: cs.secondaryContainer,
-          side: BorderSide.none,
-          visualDensity: VisualDensity.compact,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-        ),
-      );
-    }
-    final cat = line.serviceCategoryName?.trim();
-    final dept = line.serviceDepartmentName?.trim();
-    final label = (cat != null && cat.isNotEmpty)
-        ? cat
-        : (dept != null && dept.isNotEmpty ? dept : null);
-    if (label == null) return const SizedBox.shrink();
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Chip(
-        avatar: Icon(
-          Icons.category_outlined,
-          size: 16,
-          color: cs.onPrimaryContainer,
-        ),
-        label: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: cs.onPrimaryContainer,
-          ),
-        ),
-        backgroundColor: cs.primaryContainer,
-        side: BorderSide.none,
-        visualDensity: VisualDensity.compact,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-      ),
-    );
-  }
-
-  Widget _refundPendingBadge(ThemeData theme) {
-    return Chip(
-      avatar: Icon(
-        Icons.hourglass_top,
-        size: 16,
-        color: theme.colorScheme.onErrorContainer,
-      ),
-      label: Text(
-        'Pending refund',
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onErrorContainer,
-        ),
-      ),
-      backgroundColor: theme.colorScheme.errorContainer,
-      side: BorderSide.none,
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-    );
-  }
-
-  Widget? _lineRefundActionButton(BillingInvoiceItem line) {
-    final staff = ref.read(authProvider).staff;
-    if (!canRequestInvoiceItemRefund(staff)) return null;
-
-    final canCancel =
-        line.refundPending &&
-        canCancelInvoiceItemRefundRequest(staff, line.activeRefundRequest);
-    final canSubmit = invoiceLineEligibleForRefundRequest(line);
-    final tooltip = canCancel
-        ? 'Cancel refund request'
-        : (invoiceItemRefundTooltip(line) ?? 'Request refund');
-
-    return IconButton(
-      tooltip: tooltip,
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      icon: Icon(
-        canCancel ? Icons.cancel_outlined : Icons.undo_outlined,
-        size: 22,
-      ),
-      onPressed: (canCancel || canSubmit)
-          ? () => _handleLineRefundAction(line)
-          : null,
-    );
+    days += until.difference(cursor).inDays + 1;
+    return days;
   }
 
   /// Active usage segment for recurring lines (`endAt == null`); earliest [startAt] if several.
@@ -841,57 +846,6 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     }
   }
 
-  Widget _recurringDailySubtitle(BillingInvoiceItem line, ThemeData theme) {
-    final dailyRate = line.unitPrice;
-    final active = _activeUsageSegment(line);
-    final startAt = active?.startAt;
-
-    if (startAt == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            line.usageSegments.isEmpty
-                ? 'Recurring daily (no usage window yet)'
-                : 'Paused · no active usage segment',
-            style: TextStyle(
-              fontSize: 12,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(
-            'Daily charge ${dailyRate.toFinancial(isMoney: true)}',
-            style: const TextStyle(fontSize: 12),
-          ),
-        ],
-      );
-    }
-
-    final now = DateTime.now();
-    final days = _inclusiveCalendarDays(startAt, now);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Started ${_formatDate(startAt.toLocal())} · '
-          'Today ${_formatDate(now)} · '
-          '$days ${days == 1 ? 'day' : 'days'}',
-          style: const TextStyle(fontSize: 12),
-        ),
-        Text(
-          'Daily charge ${dailyRate.toFinancial(isMoney: true)}',
-          style: TextStyle(
-            fontSize: 12,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-
   ServiceModel _billingItemToServiceModel(BillingInvoiceItem item) {
     final label = item.displayLabel;
     String? categoryName;
@@ -930,6 +884,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   void _openPayBillForItems(
     List<BillingInvoiceItem> lines, {
     Map<String, double>? paymentByLineId,
+    String? initialPaymentMethod,
   }) {
     final detail = _billingDetail;
     if (detail == null || lines.isEmpty) return;
@@ -993,8 +948,113 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           _loadBillingData();
         },
         preserveInvoiceOnDismiss: true,
+        initialPaymentMethod: initialPaymentMethod,
       ),
     );
+  }
+
+  void _leaveBillingScreen() {
+    if (_allowRouteLeave) {
+      context.router.maybePop();
+      return;
+    }
+    setState(() => _allowRouteLeave = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.router.maybePop();
+    });
+  }
+
+  Future<void> _onBackPressed() async {
+    final leave = await _confirmLeave();
+    if (leave && mounted) _leaveBillingScreen();
+  }
+
+  /// True when this screen may be covered or popped. False keeps the user here.
+  Future<bool> _confirmLeave() async {
+    if (_allowRouteLeave) return true;
+    if (_leaveCheckOpen) return false;
+    final detail = _billingDetail;
+    final wallet = _wallet?.balance;
+    if (detail == null || wallet == null) return true;
+    final position = detail.effectivePayable - (wallet + detail.amountPaid);
+    if (position > 0.001) return true;
+
+    _leaveCheckOpen = true;
+    final discharged = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final width = MediaQuery.sizeOf(ctx).width;
+        final maxWidth = width - 32 < 560 ? width - 32 : 560.0;
+        return AlertDialog(
+          title: const Text('Final bill'),
+          content: SizedBox(
+            width: maxWidth,
+            child: const Text(
+              'Has this patient been discharged, and is this their final bill?',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('No'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted) {
+      _leaveCheckOpen = false;
+      return false;
+    }
+    if (discharged != true) {
+      _leaveCheckOpen = false;
+      return discharged == false;
+    }
+
+    if (position < -0.001) {
+      final excess = -position;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          final width = MediaQuery.sizeOf(ctx).width;
+          final maxWidth = width - 32 < 560 ? width - 32 : 560.0;
+          return AlertDialog(
+            title: const Text('Wallet is over'),
+            content: SizedBox(
+              width: maxWidth,
+              child: Text(
+                'After this bill is taken out, the wallet is still over by '
+                '${excess.toFinancial(isMoney: true)}. Contact a superior '
+                'officer to remove that excess. You can leave this screen '
+                'by choosing No, or once the extra amount is gone and the '
+                'bill matches the wallet and payments exactly.',
+              ),
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Stay on this bill'),
+              ),
+            ],
+          );
+        },
+      );
+      _leaveCheckOpen = false;
+      return false;
+    }
+
+    _leaveCheckOpen = false;
+    _openPayBillForItems(
+      detail.invoiceItems,
+      initialPaymentMethod: 'wallet',
+    );
+    return false;
   }
 
   BillingInvoiceItem? _billingLineForCharge(
@@ -1006,34 +1066,6 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       if (i.id == charge.invoiceLineItemId) return i;
     }
     return null;
-  }
-
-  Widget _chargeRowPaymentBackdrop(ChargeItem item) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final progress = item.paymentProgress;
-    final due = item.lineAmountDue;
-    final nothingPaid = progress < 0.001 && due > 0.001;
-    final full = item.isLineFullyPaid;
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (nothingPaid)
-          ColoredBox(color: colorScheme.error.withValues(alpha: 0.10)),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FractionallySizedBox(
-            widthFactor: full ? 1.0 : progress,
-            heightFactor: 1,
-            child: ColoredBox(
-              color: DepartmentColors.pharmacy.withValues(
-                alpha: full ? 0.26 : 0.22,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   bool _isRecurringUsageActive(BillingInvoiceItem item) =>
@@ -1732,392 +1764,2892 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
+    final staff = ref.watch(authProvider).staff;
     final detail = _billingDetail;
-    final patientUuid = detail?.patientId ?? (selectedPatient?.id ?? '');
-    final patientDisplayId = resolveTenCharDisplayId([
-      detail?.patientDisplayId,
-      selectedPatient?.patientId,
-    ]);
-    final invoiceDisplayId = resolveTenCharDisplayId([
-      detail?.invoiceDisplayId,
-    ]);
-    final effectivePatientName = widget.patientName.trim().isNotEmpty
-        ? widget.patientName.trim()
-        : (selectedPatient != null ? selectedPatient.displayName : '');
 
-    if (_loading) {
+    if (_loading || _loadError != null || detail == null) {
+      final subtitle = _loadError != null
+          ? 'Could not load this invoice'
+          : _loading
+          ? 'Loading invoice'
+          : 'Invoice data unavailable';
       return Scaffold(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        appBar: AppBar(
-          title: const Text(
-            'Billing Dashboard',
-            style: TextStyle(fontSize: 18),
-          ),
-          elevation: 0,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_loadError != null) {
-      return Scaffold(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        appBar: AppBar(
-          title: const Text('Billing Dashboard'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _loadBillingData,
-              tooltip: 'Retry',
-            ),
-          ],
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: colorScheme.error),
-                const SizedBox(height: 16),
-                Text(_loadError!, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: _loadBillingData,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ),
+        backgroundColor: colorScheme.surface,
+        body: ResponsiveBody(
+          center: false,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _pageHeader(
+                subtitle: subtitle,
+                compact: bp.isMobile,
+                trailing: [
+                  if (_loadError != null)
+                    IconButton(
+                      tooltip: 'Retry',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _loadBillingData,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Expanded(child: _gatewayBody(colorScheme)),
+            ],
           ),
         ),
       );
     }
 
-    final inv = detail;
-    if (inv == null) {
-      return Scaffold(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        appBar: AppBar(title: const Text('Billing Dashboard')),
-        body: const Center(child: Text('Invoice data unavailable.')),
-      );
-    }
-
-    final charges = chargesFromBillingDetail(inv);
-    final totalCharges = inv.totalAmount;
-    final totalPayments = inv.amountPaid;
-    final balanceDue = (inv.effectivePayable - inv.amountPaid) > 0
-        ? (inv.effectivePayable - inv.amountPaid)
-        : 0.0;
-
-    return _buildContent(
-      context,
-      colorScheme,
+    final patientUuid = detail.patientId.trim().isNotEmpty
+        ? detail.patientId
+        : (selectedPatient?.id ?? '');
+    final snap = _BillSnapshot(
       patientUuid: patientUuid,
-      patientDisplayId: patientDisplayId,
-      invoiceDisplayId: invoiceDisplayId,
-      effectivePatientName: effectivePatientName,
-      charges: charges,
-      totalCharges: totalCharges,
-      totalPayments: totalPayments,
-      balanceDue: balanceDue,
-      walletBalance: _wallet?.balance ?? 0,
-      invoiceDetail: inv,
+      patientDisplayId: resolveTenCharDisplayId([
+        detail.patientDisplayId,
+        selectedPatient?.patientId,
+      ]),
+      invoiceDisplayId: resolveTenCharDisplayId([detail.invoiceDisplayId]),
+      patientName: widget.patientName.trim().isNotEmpty
+          ? widget.patientName.trim()
+          : (selectedPatient?.displayName ?? ''),
+      charges: chargesFromBillingDetail(detail),
+      totalCharges: detail.totalAmount,
+      totalPayments: detail.amountPaid,
+      balanceDue: (detail.effectivePayable - detail.amountPaid) > 0
+          ? (detail.effectivePayable - detail.amountPaid)
+          : 0,
+      invoice: detail,
+      canDelete: canDeleteInpatientInvoice(staff),
+    );
+
+    return PopScope(
+      canPop: _allowRouteLeave,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _onBackPressed();
+      },
+      child: Scaffold(
+      backgroundColor: colorScheme.surfaceContainerLow,
+      floatingActionButton: _billFab(snap),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: Stack(
+        children: [
+          ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final showRail = width >= AppBreakpoints.desktopMin;
+          final useCards = width < _billCardBreakpoint;
+          final main = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _pageHeader(
+                subtitle: snap.patientName.isEmpty
+                    ? 'Invoice ${snap.invoiceDisplayId}'
+                    : '${snap.patientName} · ${snap.invoiceDisplayId}',
+                compact: useCards,
+                status: _balanceChip(snap),
+                trailing: _headerActions(snap, compact: useCards),
+              ),
+              const SizedBox(height: 10),
+              _categoryStrip(snap),
+              const SizedBox(height: 10),
+              _filterRow(snap, compact: useCards, showRail: showRail),
+              const SizedBox(height: 10),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 320),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  layoutBuilder: (current, previous) => Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ...previous,
+                      if (current != null) current,
+                    ],
+                  ),
+                  transitionBuilder: (child, animation) {
+                    final curved = CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    );
+                    return FadeTransition(
+                      opacity: curved,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.035, 0),
+                          end: Offset.zero,
+                        ).animate(curved),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey('${_tabController.index}|$_categoryFilter'),
+                    child: _activePane(snap, useCards: useCards),
+                  ),
+                ),
+              ),
+            ],
+          );
+          if (!showRail) return main;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(flex: 9, child: main),
+              const SizedBox(width: 12),
+              Expanded(flex: 3, child: _rail(snap)),
+            ],
+          );
+        },
+      ),
+          Positioned.fill(child: _fabScrim()),
+        ],
+      ),
+      ),
     );
   }
 
-  Widget _buildContent(
-    BuildContext context,
-    ColorScheme colorScheme, {
-    required String patientUuid,
-    required String patientDisplayId,
-    required String invoiceDisplayId,
-    required String effectivePatientName,
-    required List<ChargeItem> charges,
-    required double totalCharges,
-    required double totalPayments,
-    required double balanceDue,
-    required double walletBalance,
-    required BillingInvoiceDetail? invoiceDetail,
-  }) {
-    final staff = ref.watch(authProvider).staff;
-    final canDeleteInvoice = canDeleteInpatientInvoice(staff);
-
-    return Scaffold(
-      backgroundColor: colorScheme.surfaceContainerLowest,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              effectivePatientName.toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 18,
-                color: colorScheme.onSurfaceVariant,
+  Widget _gatewayBody(ColorScheme colorScheme) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loadError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              HeltySolidIcon(
+                icon: Icons.error_outline,
+                color: colorScheme.error,
+                size: 36,
+                iconSize: 20,
               ),
-            ),
-            Text(
-              'Invoice ID: $invoiceDisplayId',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.onSurfaceVariant,
+              const SizedBox(height: 12),
+              Text(_loadError!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _loadBillingData,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Reload invoice',
-            onPressed: _loadBillingData,
+            ],
           ),
-          if (MediaQuery.sizeOf(context).width >= 600) ...[
-            IconButton(
-              icon: const Icon(Icons.print_outlined),
-              tooltip: 'Print Invoice',
-              onPressed: () => _printInvoice(
-                patientDisplayId: patientDisplayId,
-                invoiceDisplayId: invoiceDisplayId,
-                effectivePatientName: effectivePatientName,
-                charges: charges,
-                totalCharges: totalCharges,
-                totalPayments: totalPayments,
-                balanceDue: balanceDue,
-                walletBalance: walletBalance,
+        ),
+      );
+    }
+    return const Center(child: Text('Invoice data unavailable.'));
+  }
+
+  Widget _pageHeader({
+    required String subtitle,
+    required bool compact,
+    Widget? status,
+    List<Widget> trailing = const [],
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final title = Row(
+      children: [
+        if (context.router.canPop())
+          IconButton(
+            tooltip: 'Back',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => context.router.maybePop(),
+            icon: const Icon(Icons.arrow_back),
+          ),
+        const HeltySolidIcon(
+          icon: Icons.receipt_long_outlined,
+          color: _accentIndigo,
+          size: 34,
+          iconSize: 18,
+          radius: AppTheme.radiusMd,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'PATIENT BILLING',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: _accentIndigo,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.9,
+                ),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.ios_share_rounded),
-              tooltip: 'Save as PDF',
-              onPressed: () => _shareInvoice(
-                patientDisplayId: patientDisplayId,
-                invoiceDisplayId: invoiceDisplayId,
-                effectivePatientName: effectivePatientName,
-                charges: charges,
-                totalCharges: totalCharges,
-                totalPayments: totalPayments,
-                balanceDue: balanceDue,
-                walletBalance: walletBalance,
+              Text(
+                'Inpatient Bill',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                  height: 1.1,
+                ),
               ),
-            ),
-          ] else
-            PopupMenuButton<String>(
-              tooltip: 'Invoice actions',
-              onSelected: (value) {
-                if (value == 'print') {
-                  _printInvoice(
-                    patientDisplayId: patientDisplayId,
-                    invoiceDisplayId: invoiceDisplayId,
-                    effectivePatientName: effectivePatientName,
-                    charges: charges,
-                    totalCharges: totalCharges,
-                    totalPayments: totalPayments,
-                    balanceDue: balanceDue,
-                    walletBalance: walletBalance,
-                  );
-                } else if (value == 'share') {
-                  _shareInvoice(
-                    patientDisplayId: patientDisplayId,
-                    invoiceDisplayId: invoiceDisplayId,
-                    effectivePatientName: effectivePatientName,
-                    charges: charges,
-                    totalCharges: totalCharges,
-                    totalPayments: totalPayments,
-                    balanceDue: balanceDue,
-                    walletBalance: walletBalance,
-                  );
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'print', child: Text('Print invoice')),
-                PopupMenuItem(value: 'share', child: Text('Save as PDF')),
+              HeltyEllipsisText(
+                text: subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              if (compact && status != null) ...[
+                const SizedBox(height: 4),
+                Align(alignment: Alignment.centerLeft, child: status),
               ],
-            ),
+            ],
+          ),
+        ),
+      ],
+    );
+    final tools = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!compact && status != null) ...[status, const SizedBox(width: 4)],
+        ...trailing,
+      ],
+    );
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          title,
+          const SizedBox(height: 8),
+          Align(alignment: Alignment.centerLeft, child: tools),
         ],
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          tabs: const [
-            Tab(text: 'Itemized Charges'),
-            Tab(text: 'Payment History'),
-            Tab(text: 'Refund requests'),
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: title),
+        tools,
+      ],
+    );
+  }
+
+  Widget _balanceChip(_BillSnapshot snap) {
+    final position = _positionAfterWallet(snap);
+    if (position == null) {
+      final left = snap.invoice.effectivePayable - snap.invoice.amountPaid;
+      final owing = left > 0.001;
+      return HeltyStatusChip(
+        label: owing ? 'Still to pay' : 'Settled',
+        color: owing ? _accentRed : _accentGreen,
+      );
+    }
+    if (position > 0.001) {
+      return const HeltyStatusChip(label: 'Still to pay', color: _accentRed);
+    }
+    if (position < -0.001) {
+      return const HeltyStatusChip(label: 'Money left', color: _accentGreen);
+    }
+    return const HeltyStatusChip(label: 'Settled', color: _accentGreen);
+  }
+
+  List<Widget> _headerActions(_BillSnapshot snap, {required bool compact}) {
+    Future<void> exportInvoice({bool share = false}) async {
+      final layout = await _chooseInvoicePdfLayout(
+        title: share ? 'Save as PDF' : 'Print invoice',
+      );
+      if (layout == null || !mounted) return;
+      final itemized = layout == _InvoicePdfLayout.itemized;
+      if (share) {
+        await _shareInvoice(
+          patientDisplayId: snap.patientDisplayId,
+          invoiceDisplayId: snap.invoiceDisplayId,
+          effectivePatientName: snap.patientName,
+          charges: snap.charges,
+          totalCharges: snap.totalCharges,
+          totalPayments: snap.totalPayments,
+          balanceDue: snap.balanceDue,
+          walletBalance: _wallet?.balance ?? 0,
+          itemized: itemized,
+        );
+      } else {
+        await _printInvoice(
+          patientDisplayId: snap.patientDisplayId,
+          invoiceDisplayId: snap.invoiceDisplayId,
+          effectivePatientName: snap.patientName,
+          charges: snap.charges,
+          totalCharges: snap.totalCharges,
+          totalPayments: snap.totalPayments,
+          balanceDue: snap.balanceDue,
+          walletBalance: _wallet?.balance ?? 0,
+          itemized: itemized,
+        );
+      }
+    }
+
+    final refresh = IconButton(
+      tooltip: 'Reload invoice',
+      visualDensity: VisualDensity.compact,
+      onPressed: _loadBillingData,
+      icon: const Icon(Icons.refresh),
+    );
+    if (compact) {
+      return [
+        refresh,
+        PopupMenuButton<String>(
+          tooltip: 'Invoice actions',
+          onSelected: (value) {
+            if (value == 'print') {
+              exportInvoice();
+            } else if (value == 'share') {
+              exportInvoice(share: true);
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: 'print', child: Text('Print invoice')),
+            PopupMenuItem(value: 'share', child: Text('Save as PDF')),
           ],
         ),
+      ];
+    }
+    return [
+      refresh,
+      IconButton(
+        tooltip: 'Print invoice',
+        visualDensity: VisualDensity.compact,
+        onPressed: () => exportInvoice(),
+        icon: const Icon(Icons.print_outlined),
       ),
-      body: ResponsiveBody(
-        center: false,
-        builder: (context, bp) => Column(
-          children: [
-            _buildFinancialSummary(
-              colorScheme,
-              balanceDue: balanceDue,
-              totalCharges: totalCharges,
-              totalPayments: totalPayments,
-              coveredAmount: invoiceDetail?.coveredAmount ?? 0,
-              effectivePayable: invoiceDetail?.effectivePayable ?? balanceDue,
-              walletBalance: walletBalance,
-              patientHmoName: invoiceDetail?.patientHmoName,
-              patientHmoDefaultCoveragePercent:
-                  invoiceDetail?.patientHmoDefaultCoveragePercent,
+      IconButton(
+        tooltip: 'Save as PDF',
+        visualDensity: VisualDensity.compact,
+        onPressed: () => exportInvoice(share: true),
+        icon: const Icon(Icons.ios_share_rounded),
+      ),
+    ];
+  }
+
+  /// Patient's share minus wallet and payments. Positive means still owing.
+  /// Null while the wallet has not loaded.
+  double? _positionAfterWallet(_BillSnapshot snap) {
+    final wallet = _wallet?.balance;
+    if (wallet == null) return null;
+    return snap.invoice.effectivePayable - (wallet + snap.invoice.amountPaid);
+  }
+
+  double _activeCoverageSum(BillingInvoiceDetail invoice, String kind) {
+    final wanted = kind.trim().toUpperCase();
+    var sum = 0.0;
+    for (final coverage in invoice.coverages) {
+      if (coverage.kind.trim().toUpperCase() != wanted) continue;
+      final status = coverage.status.trim().toUpperCase();
+      if (status == 'REVERSED' ||
+          status == 'CANCELLED' ||
+          status == 'VOIDED') {
+        continue;
+      }
+      sum += coverage.computedAmount;
+    }
+    return sum;
+  }
+
+  Widget _categoryStrip(_BillSnapshot snap) {
+    final groups = _billGroups(snap.charges);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= AppBreakpoints.tabletMin;
+        if (!wide) {
+          return SizedBox(
+            height: 74,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: groups.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, i) =>
+                  SizedBox(width: 176, child: _categoryTile(groups[i])),
             ),
+          );
+        }
+        return Row(
+          children: [
+            for (var i = 0; i < groups.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(child: _categoryTile(groups[i])),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _categoryTile(_BillGroup group) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final selected = _categoryFilter == group.key;
+    return AnimatedScale(
+      scale: selected ? 1 : 0.985,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: selected ? group.color.withValues(alpha: 0.10) : cs.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(
+            color: selected
+                ? group.color
+                : cs.outline.withValues(alpha: 0.22),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            onTap: () => _selectCategory(group.key),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Row(
+          children: [
+            HeltySolidIcon(
+              icon: group.icon,
+              color: group.color,
+              size: 28,
+              iconSize: 15,
+              radius: 8,
+            ),
+            const SizedBox(width: 8),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildChargesTab(colorScheme, charges, invoiceDetail),
-                  _buildPaymentsTab(colorScheme),
-                  _buildRefundRequestsTab(colorScheme, invoiceDetail),
+                  HeltyEllipsisText(
+                    text: group.label,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: selected ? group.color : cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  HeltyEllipsisText(
+                    text: group.total.toFinancial(isMoney: true),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurface,
+                      height: 1.15,
+                    ),
+                  ),
+                  HeltyEllipsisText(
+                    text:
+                        '${group.count} lines · paid ${group.paid.toFinancial(isMoney: true)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
+              ),
+            ),
+          ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final buttons = <Widget>[
-                FilledButton.icon(
-                  onPressed: () => _showAddActionSheet(
-                    context,
-                    patientUuid,
-                    effectivePatientName,
-                  ),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Service'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed:
-                      invoiceDetail == null ||
-                          (invoiceDetail.effectivePayable -
-                                  invoiceDetail.amountPaid) <=
-                              0.001
-                      ? null
-                      : () {
-                          final lines = _selectedLineIdsForPay.isEmpty
-                              ? invoiceDetail.invoiceItems.toList()
-                              : invoiceDetail.invoiceItems
-                                    .where(
-                                      (e) =>
-                                          _selectedLineIdsForPay.contains(e.id),
-                                    )
-                                    .toList();
-                          if (lines.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('No bill lines to pay'),
-                              ),
-                            );
-                            return;
-                          }
-                          _openPayBillForItems(lines);
-                        },
-                  icon: const Icon(Icons.payments_outlined, size: 18),
-                  label: Text(
-                    _selectedLineIdsForPay.isEmpty
-                        ? 'Pay bill (all)'
-                        : 'Pay selected (${_selectedLineIdsForPay.length})',
-                  ),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: patientUuid.isEmpty
-                      ? null
-                      : () => context.router.push(
-                          PatientWalletHistoryRoute(
-                            patientUuid: patientUuid,
-                            patientName: effectivePatientName,
-                            chartNumber: patientDisplayId,
-                          ),
-                        ),
-                  icon: const Icon(Icons.history, size: 18),
-                  label: const Text('View history'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: patientUuid.isEmpty
-                      ? null
-                      : () => WalletDepositDialog.show(
-                          context,
-                          ref: ref,
-                          patientUuid: patientUuid,
-                          patientName: effectivePatientName,
-                          chartNumber: patientDisplayId,
-                          onSuccess: _loadBillingData,
-                        ),
-                  icon: const Icon(
-                    Icons.account_balance_wallet_outlined,
-                    size: 18,
-                  ),
-                  label: const Text('Deposit Wallet'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed:
-                      invoiceDetail == null ||
-                          invoiceDetail.invoiceItems
-                              .where((e) => e.isRecurringDaily)
-                              .isEmpty
-                      ? null
-                      : () =>
-                            _showRecurringControlDialog(context, invoiceDetail),
-                  icon: const Icon(Icons.pause_circle_outline, size: 18),
-                  label: const Text('Pause/Resume'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () => _showDischargeDialog(
-                    context,
-                    patientUuid,
-                    effectivePatientName,
-                  ),
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const Text('Discharge'),
-                ),
-                if (canDeleteInvoice)
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colorScheme.error,
-                      side: BorderSide(color: colorScheme.error),
-                    ),
-                    onPressed: _deletingInvoice || invoiceDetail == null
-                        ? null
-                        : () => _deleteInvoiceAndAllItems(
-                            invoiceDisplayId: invoiceDisplayId,
-                            detail: invoiceDetail,
-                          ),
-                    icon: _deletingInvoice
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colorScheme.error,
-                            ),
-                          )
-                        : const Icon(Icons.delete_forever_outlined, size: 18),
-                    label: const Text('Delete invoice'),
-                  ),
-              ];
-              if (constraints.maxWidth >= 720) {
-                return Wrap(spacing: 8, runSpacing: 8, children: buttons);
-              }
-              return SizedBox(
-                height: 48,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: buttons.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (_, index) => buttons[index],
-                ),
-              );
-            },
+    );
+  }
+
+  void _selectCategory(String key) {
+    if (_categoryFilter == key && _tabController.index == 0) return;
+    setState(() {
+      _categoryFilter = key;
+      _listSkip = 0;
+    });
+    if (_tabController.index != 0) _tabController.animateTo(0);
+  }
+
+  Widget _filterRow(
+    _BillSnapshot snap, {
+    required bool compact,
+    required bool showRail,
+  }) {
+    final button = IconButton(
+      tooltip: showRail ? 'Filters' : 'Filters and actions',
+      onPressed: () => _openFilters(
+        snap,
+        includeCategory: compact,
+        includeActions: !showRail,
+      ),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      icon: const HeltySolidIcon(
+        icon: Icons.tune,
+        color: _accentPurple,
+        size: 32,
+        iconSize: 16,
+        radius: 8,
+      ),
+    );
+    final search = _searchField();
+    final tabs = _ledgerTabs();
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: search),
+              const SizedBox(width: 8),
+              button,
+            ],
           ),
+          const SizedBox(height: 8),
+          tabs,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(flex: 4, child: search),
+        const SizedBox(width: 8),
+        Expanded(flex: 5, child: tabs),
+        const SizedBox(width: 8),
+        button,
+      ],
+    );
+  }
+
+  Widget _ledgerTabs() {
+    const tabs = [
+      (0, 'Charges', Icons.receipt_long_outlined, _accentIndigo),
+      (1, 'Payments', Icons.payments_outlined, _accentGreen),
+      (2, 'Refunds', Icons.assignment_return_outlined, _accentPink),
+    ];
+    return Row(
+      children: [
+        for (var i = 0; i < tabs.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(
+            child: _ledgerTab(
+              index: tabs[i].$1,
+              label: tabs[i].$2,
+              icon: tabs[i].$3,
+              color: tabs[i].$4,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _ledgerTab({
+    required int index,
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) {
+    final selected = _tabController.index == index;
+    final cs = Theme.of(context).colorScheme;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+      height: 40,
+      decoration: BoxDecoration(
+        color: selected ? color : cs.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: selected ? color : cs.outline.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          onTap: () {
+            if (_tabController.index != index) _tabController.animateTo(index);
+            setState(() => _listSkip = 0);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: selected ? Colors.white : color),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : cs.onSurface,
+                  ),
+                ),
+              ),
+            ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required Color iconColor,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      isDense: true,
+      prefixIcon: Padding(
+        padding: const EdgeInsets.all(6),
+        child: HeltySolidIcon(
+          icon: icon,
+          color: iconColor,
+          size: 22,
+          iconSize: 13,
+          radius: 6,
+        ),
+      ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+      filled: true,
+      fillColor: cs.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      labelStyle: const TextStyle(fontSize: 11),
+    );
+  }
+
+  String get _searchHint {
+    switch (_tabController.index) {
+      case 1:
+        return 'Method, source, or note';
+      case 2:
+        return 'Item, status, or reason';
+      default:
+        return 'Description or category';
+    }
+  }
+
+  Widget _searchField() {
+    return TextField(
+      controller: _lineSearchCtrl,
+      style: const TextStyle(fontSize: 12),
+      decoration: _fieldDecoration(
+        label: 'Search',
+        hint: _searchHint,
+        icon: Icons.search,
+        iconColor: _accentIndigo,
+      ),
+    );
+  }
+
+  Widget _categoryDropdown({VoidCallback? onUpdated}) {
+    return DropdownButtonFormField<String>(
+      key: ValueKey('cat-$_categoryFilter'),
+      initialValue: _categoryFilter,
+      isExpanded: true,
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      decoration: _fieldDecoration(
+        label: 'Category',
+        hint: '',
+        icon: Icons.category_outlined,
+        iconColor: _accentPink,
+      ),
+      items: const [
+        DropdownMenuItem(value: 'all', child: Text('All categories')),
+        DropdownMenuItem(value: 'daily', child: Text('Daily charges')),
+        DropdownMenuItem(value: 'pharmacy', child: Text('Pharmacy')),
+        DropdownMenuItem(value: 'diagnostics', child: Text('Diagnostics')),
+        DropdownMenuItem(value: 'supplies', child: Text('Supplies')),
+        DropdownMenuItem(value: 'other', child: Text('Other')),
+      ],
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() {
+          _categoryFilter = v;
+          _listSkip = 0;
+        });
+        onUpdated?.call();
+      },
+    );
+  }
+
+  Widget _settlementDropdown({VoidCallback? onUpdated}) {
+    return DropdownButtonFormField<String>(
+      key: ValueKey('settle-$_settlementFilter'),
+      initialValue: _settlementFilter,
+      isExpanded: true,
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      decoration: _fieldDecoration(
+        label: 'Settlement',
+        hint: '',
+        icon: Icons.flag_outlined,
+        iconColor: _accentAmber,
+      ),
+      items: const [
+        DropdownMenuItem(value: 'all', child: Text('All lines')),
+        DropdownMenuItem(value: 'due', child: Text('Outstanding')),
+        DropdownMenuItem(value: 'paid', child: Text('Paid')),
+      ],
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() {
+          _settlementFilter = v;
+          _listSkip = 0;
+        });
+        onUpdated?.call();
+      },
+    );
+  }
+
+  Future<void> _openFilters(
+    _BillSnapshot snap, {
+    required bool includeCategory,
+    required bool includeActions,
+  }) {
+    final body = StatefulBuilder(
+      builder: (context, setLocal) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Category and settlement apply to charges.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (includeCategory) ...[
+            _categoryDropdown(onUpdated: () => setLocal(() {})),
+            const SizedBox(height: 10),
+          ],
+          _settlementDropdown(onUpdated: () => setLocal(() {})),
+        ],
+      ),
+    );
+    if (includeActions) {
+      return showHeltySlidePanel(
+        context: context,
+        body: body,
+        below: _billStatement(snap, fill: false),
+      );
+    }
+    final width = MediaQuery.sizeOf(context).width;
+    final maxWidth = width - 32 < 560 ? width - 32 : 560.0;
+    return showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.18),
+      builder: (ctx) => Dialog(
+        alignment: Alignment.topRight,
+        insetPadding: const EdgeInsets.fromLTRB(16, 88, 16, 16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const HeltySolidIcon(
+                      icon: Icons.tune,
+                      color: _accentPurple,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Filters',
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(ctx).maybePop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                body,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _rail(_BillSnapshot snap) => _billStatement(snap, fill: true);
+
+  Widget _fabScrim() {
+    return AnimatedBuilder(
+      animation: _fabController,
+      builder: (context, _) {
+        final open = _fabController.value > 0;
+        return IgnorePointer(
+          ignoring: !open,
+          child: GestureDetector(
+            onTap: _fabController.reverse,
+            child: ColoredBox(
+              color: Colors.black.withValues(alpha: 0.28 * _fabController.value),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _toggleBillActions() {
+    if (_fabController.status == AnimationStatus.dismissed ||
+        _fabController.status == AnimationStatus.reverse) {
+      _fabController.forward();
+    } else {
+      _fabController.reverse();
+    }
+  }
+
+  List<HeltySlideAction> _fabActions(_BillSnapshot snap) {
+    final actions = _slideActions(snap);
+    if (snap.canDelete) {
+      final cs = Theme.of(context).colorScheme;
+      actions.add(
+        HeltySlideAction(
+          label: 'Delete invoice',
+          icon: Icons.delete_forever_outlined,
+          colors: [cs.error, const Color(0xFFB91C1C)],
+          onPressed: _deletingInvoice
+              ? null
+              : () => _deleteInvoiceAndAllItems(
+                  invoiceDisplayId: snap.invoiceDisplayId,
+                  detail: snap.invoice,
+                ),
+        ),
+      );
+    }
+    return actions;
+  }
+
+  Widget _billFab(_BillSnapshot snap) {
+    final actions = _fabActions(snap);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < actions.length; i++)
+          _dialItem(actions[i], i, actions.length),
+        const SizedBox(height: 4),
+        FloatingActionButton(
+          heroTag: 'inpatient-bill-actions',
+          tooltip: 'Bill actions',
+          backgroundColor: _accentIndigo,
+          onPressed: _toggleBillActions,
+          child: AnimatedIcon(
+            icon: AnimatedIcons.menu_close,
+            progress: _fabController,
+            color: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _dialItem(HeltySlideAction action, int index, int count) {
+    final fromBottom = count - 1 - index;
+    final start = (fromBottom * 0.07).clamp(0.0, 0.55);
+    final enabled = action.onPressed != null;
+    final color = enabled
+        ? action.colors.first
+        : Theme.of(context).colorScheme.outline;
+    final row = Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: Theme.of(context).colorScheme.surface,
+            elevation: 3,
+            borderRadius: BorderRadius.circular(20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Text(
+                  action.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          FloatingActionButton.small(
+            heroTag: 'inpatient-bill-$index-${action.label}',
+            backgroundColor: color,
+            elevation: enabled ? 4 : 0,
+            tooltip: action.label,
+            onPressed: enabled
+                ? () {
+                    _fabController.reverse();
+                    action.onPressed!();
+                  }
+                : null,
+            child: Icon(action.icon, color: Colors.white, size: 18),
+          ),
+        ],
+      ),
+    );
+    return AnimatedBuilder(
+      animation: _fabController,
+      builder: (context, child) {
+        final t = Interval(
+          start,
+          1,
+          curve: Curves.easeOutCubic,
+        ).transform(_fabController.value.clamp(0.0, 1.0));
+        return IgnorePointer(
+          ignoring: t < 0.05,
+          child: Opacity(
+            opacity: t,
+            child: Align(
+              alignment: Alignment.centerRight,
+              heightFactor: t,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: row,
+    );
+  }
+
+  Widget _billStatement(_BillSnapshot snap, {required bool fill}) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final invoice = snap.invoice;
+    final position = _positionAfterWallet(snap);
+    final owing = position != null && position > 0.001;
+    final leftover = position != null && position < -0.001;
+    final heroColor = position == null
+        ? _accentIndigo
+        : (owing ? _accentRed : _accentGreen);
+    final heroTitle = position == null
+        ? 'Balance after wallet'
+        : owing
+        ? 'Still to pay'
+        : leftover
+        ? 'Money left over'
+        : 'Settled';
+    final heroValue = position == null
+        ? '—'
+        : (owing ? position : position.abs()).toFinancial(isMoney: true);
+    final walletText = _wallet == null
+        ? 'wallet not loaded'
+        : _wallet!.balance.toFinancial(isMoney: true);
+    final heroHint = position == null
+        ? 'Patient\'s share minus the wallet and payments. The wallet has not loaded yet.'
+        : owing
+        ? 'Patient\'s share − ($walletText + payments). This much is still unpaid.'
+        : leftover
+        ? 'The wallet and payments are more than the patient\'s share. This much is left.'
+        : 'The wallet and payments cover the patient\'s share.';
+    final leftOnBill = invoice.effectivePayable - invoice.amountPaid;
+    final leftOwing = leftOnBill > 0.001;
+    final leftAhead = leftOnBill < -0.001;
+    final hmoName = invoice.patientHmoName?.trim() ?? '';
+    final hmoPercent = invoice.patientHmoDefaultCoveragePercent;
+    final insurance = _activeCoverageSum(invoice, 'HMO');
+    final discount = _activeCoverageSum(invoice, 'DISCOUNT');
+    final insuranceHint = hmoName.isEmpty
+        ? 'No insurer is linked to this patient'
+        : hmoPercent == null
+        ? hmoName
+        : '$hmoName · ${hmoPercent.round()}% of eligible charges';
+
+    final header = Row(
+      children: [
+        HeltySolidIcon(
+          icon: owing
+              ? Icons.warning_amber_rounded
+              : Icons.account_balance_outlined,
+          color: heroColor,
+          size: 28,
+          iconSize: 15,
+          radius: 8,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Where this bill stands',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                invoice.status.trim().isEmpty ? 'Invoice' : invoice.status,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final hero = _BreathingWash(
+      color: heroColor,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              heroTitle,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: heroColor,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              heroValue,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: heroColor,
+                height: 1.05,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              heroHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final lines = <Widget>[
+      _moneyRow(
+        title: 'Services rendered',
+        value: invoice.totalAmount.toFinancial(isMoney: true),
+        hint: 'Total value of care charged on this bill',
+        icon: Icons.medical_services_outlined,
+        color: _accentBlue,
+      ),
+      _moneyRow(
+        title: 'Payments received',
+        value: invoice.amountPaid.toFinancial(isMoney: true),
+        hint: '${_mergedInvoicePayments.length} payments recorded on this bill',
+        icon: Icons.payments_outlined,
+        color: _accentGreen,
+      ),
+      _moneyRow(
+        title: 'Wallet balance',
+        value: _wallet == null
+            ? '—'
+            : _wallet!.balance.toFinancial(isMoney: true),
+        hint: _wallet == null
+            ? 'Not loaded yet'
+            : 'Money the patient can still spend',
+        icon: Icons.savings_outlined,
+        color: _accentTeal,
+      ),
+      _moneyRow(
+        title: 'Insurance',
+        value: insurance <= 0.001
+            ? 'None'
+            : insurance.toFinancial(isMoney: true),
+        hint: insuranceHint,
+        icon: Icons.health_and_safety_outlined,
+        color: _accentPurple,
+      ),
+      _moneyRow(
+        title: 'Discount',
+        value: discount <= 0.001 ? 'None' : discount.toFinancial(isMoney: true),
+        hint: discount <= 0.001
+            ? 'No discount applied'
+            : 'Amount taken off the price',
+        icon: Icons.discount_outlined,
+        color: _accentPink,
+      ),
+      _moneyRow(
+        title: 'Amount covered',
+        value: invoice.coveredAmount.toFinancial(isMoney: true),
+        hint: 'Insurance and discount together',
+        icon: Icons.verified_outlined,
+        color: _accentPurple,
+      ),
+      _moneyRow(
+        title: 'Patient\'s share',
+        value: invoice.effectivePayable.toFinancial(isMoney: true),
+        hint: 'Services rendered, after insurance and discount',
+        icon: Icons.person_outline,
+        color: _accentIndigo,
+      ),
+      _moneyRow(
+        title: leftAhead ? 'Paid ahead on the bill' : 'Left on this bill',
+        value: leftOnBill.abs().toFinancial(isMoney: true),
+        hint: leftOwing
+            ? 'Patient\'s share minus payments. The wallet is not counted yet.'
+            : leftAhead
+            ? 'Payments are already more than the patient\'s share.'
+            : 'Payments match the patient\'s share.',
+        icon: Icons.receipt_long_outlined,
+        color: leftOwing ? _accentRed : _accentGreen,
+        valueColor: leftOwing ? _accentRed : _accentGreen,
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Insurance and discount',
+        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+      ),
+      if (_coverageBusy) ...[
+        const SizedBox(height: 8),
+        const LinearProgressIndicator(minHeight: 2),
+      ],
+      const SizedBox(height: 8),
+      _coverageActions(invoice),
+      const SizedBox(height: 8),
+      _coverageList(invoice, scroll: false),
+    ];
+
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        header,
+        const SizedBox(height: 10),
+        hero,
+        const SizedBox(height: 4),
+        if (fill)
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(top: 6, bottom: 88),
+              children: lines,
+            ),
+          )
+        else
+          ...lines,
+      ],
+    );
+
+    if (!fill) return body;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: SizedBox.expand(
+        child: Padding(padding: const EdgeInsets.all(12), child: body),
+      ),
+    );
+  }
+
+  Widget _moneyRow({
+    required String title,
+    required String value,
+    required String hint,
+    required IconData icon,
+    required Color color,
+    Color? valueColor,
+  }) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          HeltySolidIcon(
+            icon: icon,
+            color: color,
+            size: 28,
+            iconSize: 14,
+            radius: 8,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  hint,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: valueColor ?? theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<HeltySlideAction> _slideActions(_BillSnapshot snap) {
+    final invoice = snap.invoice;
+    final due = (invoice.effectivePayable - invoice.amountPaid) > 0.001;
+    final hasRecurring = invoice.invoiceItems.any((e) => e.isRecurringDaily);
+    final payLabel = _selectedLineIdsForPay.isEmpty
+        ? 'Pay bill'
+        : 'Pay selected (${_selectedLineIdsForPay.length})';
+    return [
+      HeltySlideAction(
+        label: 'Add service',
+        icon: Icons.add,
+        colors: const [_accentBlue, _accentIndigo],
+        onPressed: () =>
+            _showAddActionSheet(context, snap.patientUuid, snap.patientName),
+      ),
+      HeltySlideAction(
+        label: payLabel,
+        icon: Icons.payments_outlined,
+        colors: const [_accentGreen, _accentTeal],
+        onPressed: due ? _paySelectedOrAll : null,
+      ),
+      HeltySlideAction(
+        label: 'Deposit wallet',
+        icon: Icons.account_balance_wallet_outlined,
+        colors: const [_accentTeal, _accentBlue],
+        onPressed: snap.patientUuid.isEmpty
+            ? null
+            : () => WalletDepositDialog.show(
+                context,
+                ref: ref,
+                patientUuid: snap.patientUuid,
+                patientName: snap.patientName,
+                chartNumber: snap.patientDisplayId,
+                onSuccess: _loadBillingData,
+              ),
+      ),
+      HeltySlideAction(
+        label: 'Wallet history',
+        icon: Icons.history,
+        colors: const [_accentIndigo, _accentPurple],
+        onPressed: snap.patientUuid.isEmpty
+            ? null
+            : () => context.router.push(
+                PatientWalletHistoryRoute(
+                  patientUuid: snap.patientUuid,
+                  patientName: snap.patientName,
+                  chartNumber: snap.patientDisplayId,
+                ),
+              ),
+      ),
+      HeltySlideAction(
+        label: 'Pause or resume',
+        icon: Icons.pause_circle_outline,
+        colors: const [_accentAmber, _accentPink],
+        onPressed: hasRecurring
+            ? () => _showRecurringControlDialog(context, invoice)
+            : null,
+      ),
+      HeltySlideAction(
+        label: 'Discharge',
+        icon: Icons.logout,
+        colors: const [_accentPink, _accentPurple],
+        onPressed: () =>
+            _showDischargeDialog(context, snap.patientUuid, snap.patientName),
+      ),
+    ];
+  }
+
+  void _paySelectedOrAll() {
+    final invoice = _billingDetail;
+    if (invoice == null) return;
+    if ((invoice.effectivePayable - invoice.amountPaid) <= 0.001) return;
+    final lines = _selectedLineIdsForPay.isEmpty
+        ? invoice.invoiceItems.toList()
+        : invoice.invoiceItems
+              .where((e) => _selectedLineIdsForPay.contains(e.id))
+              .toList();
+    if (lines.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No bill lines to pay')));
+      return;
+    }
+    _openPayBillForItems(lines);
+  }
+
+  Widget _activePane(_BillSnapshot snap, {required bool useCards}) {
+    switch (_tabController.index) {
+      case 1:
+        return _paymentsPane(useCards: useCards);
+      case 2:
+        return _refundsPane(snap, useCards: useCards);
+      default:
+        return _chargesPane(snap, useCards: useCards);
+    }
+  }
+
+  ({int skip, int end, bool hasMore}) _window(int length) {
+    if (length <= 0) return (skip: 0, end: 0, hasMore: false);
+    final skip = _listSkip >= length ? 0 : _listSkip;
+    final end = skip + _billPageSize > length ? length : skip + _billPageSize;
+    return (skip: skip, end: end, hasMore: end < length);
+  }
+
+  void _goPrev(int skip) {
+    final next = skip - _billPageSize;
+    setState(() => _listSkip = next < 0 ? 0 : next);
+  }
+
+  void _goNext(int total, int skip) {
+    final next = skip + _billPageSize;
+    if (next >= total) return;
+    setState(() => _listSkip = next);
+  }
+
+  bool _chargeInCategory(ChargeItem item) {
+    switch (_categoryFilter) {
+      case 'daily':
+        return item.category == ChargeCategory.daily;
+      case 'pharmacy':
+        return item.category == ChargeCategory.pharmacy;
+      case 'diagnostics':
+        return item.category == ChargeCategory.lab ||
+            item.category == ChargeCategory.radiology;
+      case 'supplies':
+        return item.category == ChargeCategory.supplies;
+      case 'other':
+        return item.category == ChargeCategory.other ||
+            item.category == ChargeCategory.surgery;
+      default:
+        return true;
+    }
+  }
+
+  bool _chargeInSettlement(ChargeItem item) {
+    switch (_settlementFilter) {
+      case 'due':
+        return !item.isLineFullyPaid;
+      case 'paid':
+        return item.isLineFullyPaid;
+      default:
+        return true;
+    }
+  }
+
+  List<ChargeItem> _filteredCharges(_BillSnapshot snap) {
+    final source =
+        _lineQuery.isEmpty &&
+            _categoryFilter == 'all' &&
+            _settlementFilter == 'all'
+        ? snap.charges
+        : [
+            for (final item in snap.charges)
+              if (_chargeMatches(item, snap.invoice)) item,
+          ];
+    final list = [...source];
+    list.sort((a, b) {
+      final order = _groupOrder(a.category).compareTo(_groupOrder(b.category));
+      if (order != 0) return order;
+      return a.date.compareTo(b.date);
+    });
+    return list;
+  }
+
+  String _groupKey(ChargeCategory category) {
+    switch (category) {
+      case ChargeCategory.daily:
+        return 'daily';
+      case ChargeCategory.pharmacy:
+        return 'pharmacy';
+      case ChargeCategory.lab:
+      case ChargeCategory.radiology:
+        return 'diagnostics';
+      case ChargeCategory.supplies:
+        return 'supplies';
+      case ChargeCategory.surgery:
+      case ChargeCategory.other:
+        return 'other';
+    }
+  }
+
+  int _groupOrder(ChargeCategory category) {
+    return switch (_groupKey(category)) {
+      'daily' => 0,
+      'pharmacy' => 1,
+      'diagnostics' => 2,
+      'supplies' => 3,
+      _ => 4,
+    };
+  }
+
+  ({String label, IconData icon, Color color}) _groupMeta(String key) {
+    return switch (key) {
+      'daily' => (
+        label: 'Daily charges',
+        icon: Icons.bed_outlined,
+        color: _accentIndigo,
+      ),
+      'pharmacy' => (
+        label: 'Pharmacy',
+        icon: Icons.medication_outlined,
+        color: _accentGreen,
+      ),
+      'diagnostics' => (
+        label: 'Diagnostics',
+        icon: Icons.biotech_outlined,
+        color: _accentPurple,
+      ),
+      'supplies' => (
+        label: 'Supplies',
+        icon: Icons.inventory_2_outlined,
+        color: _accentTeal,
+      ),
+      _ => (
+        label: 'Other charges',
+        icon: Icons.receipt_outlined,
+        color: _accentBlue,
+      ),
+    };
+  }
+
+  List<_BillGroup> _billGroups(List<ChargeItem> charges) {
+    final groups = <_BillGroup>[
+      _BillGroup(
+        key: 'all',
+        label: 'Whole bill',
+        icon: Icons.account_balance_outlined,
+        color: _accentIndigo,
+        total: chargeSectionTotal(charges),
+        paid: chargeSectionPaid(charges),
+        count: charges.length,
+      ),
+    ];
+    for (final key in ['daily', 'pharmacy', 'diagnostics', 'supplies', 'other']) {
+      final items = [
+        for (final item in charges)
+          if (_groupKey(item.category) == key) item,
+      ];
+      if (items.isEmpty && _categoryFilter != key) continue;
+      final meta = _groupMeta(key);
+      groups.add(
+        _BillGroup(
+          key: key,
+          label: meta.label,
+          icon: meta.icon,
+          color: meta.color,
+          total: chargeSectionTotal(items),
+          paid: chargeSectionPaid(items),
+          count: items.length,
+        ),
+      );
+    }
+    return groups;
+  }
+
+  bool _chargeMatches(ChargeItem item, BillingInvoiceDetail invoice) {
+    if (!_chargeInCategory(item) || !_chargeInSettlement(item)) return false;
+    if (_lineQuery.isEmpty) return true;
+    final line = _billingLineForCharge(item, invoice);
+    final hay = [
+      item.description,
+      chargeCategoryLabel(item.category),
+      _chargeDetailLine(item, line),
+      line?.createdByName ?? '',
+    ].join(' ').toLowerCase();
+    return hay.contains(_lineQuery);
+  }
+
+  String _chargeDetailLine(ChargeItem item, BillingInvoiceItem? line) {
+    if (line != null && line.isRecurringDaily) {
+      final daily = line.unitPrice.toFinancial(isMoney: true);
+      final startAt = _activeUsageSegment(line)?.startAt;
+      if (startAt == null) {
+        final state = line.usageSegments.isEmpty ? 'Recurring daily' : 'Paused';
+        return '$state · $daily/day';
+      }
+      final days = _inclusiveCalendarDays(startAt, DateTime.now());
+      final state = _isRecurringUsageActive(line) ? 'Running' : 'Paused';
+      final dayLabel = days == 1 ? 'day' : 'days';
+      return '$state · ${_formatDate(startAt.toLocal())} · $days $dayLabel · $daily/day';
+    }
+    final parts = <String>[_formatDate(item.date)];
+    if (item.quantity > 1) {
+      parts.add('Qty ${item.quantity}');
+      parts.add('${item.amount.toFinancial(isMoney: true)} / unit');
+    }
+    final by = line?.createdByName?.trim() ?? '';
+    if (by.isNotEmpty) parts.add('Added by $by');
+    return parts.join(' · ');
+  }
+
+  (String, Color) _chargeStatus(ChargeItem item, BillingInvoiceItem? line) {
+    if (line?.refundPending == true) return ('Refund pending', _accentAmber);
+    if (item.isLineFullyPaid) return ('Paid', _accentGreen);
+    if (item.amountPaid > 0.001) return ('Partial', _accentBlue);
+    return ('Due', _accentPink);
+  }
+
+  Color _categoryColor(ChargeCategory category) {
+    switch (category) {
+      case ChargeCategory.daily:
+        return _accentIndigo;
+      case ChargeCategory.pharmacy:
+        return _accentGreen;
+      case ChargeCategory.lab:
+      case ChargeCategory.radiology:
+        return _accentPurple;
+      case ChargeCategory.supplies:
+        return _accentTeal;
+      case ChargeCategory.surgery:
+      case ChargeCategory.other:
+        return _accentBlue;
+    }
+  }
+
+  Widget _chargesPane(_BillSnapshot snap, {required bool useCards}) {
+    final rows = _filteredCharges(snap);
+    final window = _window(rows.length);
+    final page = rows.sublist(window.skip, window.end);
+    final due = chargeSectionDue(rows);
+    final empty = snap.charges.isEmpty
+        ? 'No charges on this invoice yet.'
+        : 'No charges match these filters.';
+    return _dataSurface(
+      useCards: useCards,
+      minWidth: 1040,
+      emptyMessage: empty,
+      total: rows.length,
+      skip: window.skip,
+      hasMore: window.hasMore,
+      shown: page.length,
+      footer: _countLabel(
+        skip: window.skip,
+        shown: page.length,
+        total: rows.length,
+        noun: 'lines',
+        extra: 'Due ${due.toFinancial(isMoney: true)}',
+      ),
+      ribbon: _paneRibbon(
+        title: 'Itemized charges',
+        caption: 'Grouped by category. Paid and used stay on each line.',
+        color: _accentIndigo,
+        icon: Icons.receipt_long_outlined,
+      ),
+      tableHeader: _chargeHeader(),
+      tableRow: (index) => _withGroupBanner(
+        index: index,
+        page: page,
+        rows: rows,
+        child: _chargeTableRow(
+          page[index],
+          snap.invoice,
+          zebraIndex: window.skip + index,
+        ),
+      ),
+      card: (index) => _withGroupBanner(
+        index: index,
+        page: page,
+        rows: rows,
+        child: _chargeCard(
+          page[index],
+          snap.invoice,
+          indexLabel: '${window.skip + index + 1}',
+        ),
+      ),
+    );
+  }
+
+  Widget _withGroupBanner({
+    required int index,
+    required List<ChargeItem> page,
+    required List<ChargeItem> rows,
+    required Widget child,
+  }) {
+    final key = _groupKey(page[index].category);
+    final previous = index == 0 ? null : _groupKey(page[index - 1].category);
+    if (previous == key) return child;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _groupBanner(key, rows),
+        child,
+      ],
+    );
+  }
+
+  Widget _groupBanner(String key, List<ChargeItem> rows) {
+    final items = [
+      for (final item in rows)
+        if (_groupKey(item.category) == key) item,
+    ];
+    final meta = _groupMeta(key);
+    final theme = Theme.of(context);
+    return Container(
+      color: meta.color.withValues(alpha: 0.10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          HeltySolidIcon(
+            icon: meta.icon,
+            color: meta.color,
+            size: 22,
+            iconSize: 12,
+            radius: 6,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              meta.label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          Text(
+            'Paid ${chargeSectionPaid(items).toFinancial(isMoney: true)}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: _accentGreen,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            chargeSectionTotal(items).toFinancial(isMoney: true),
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paneRibbon({
+    required String title,
+    required String caption,
+    required Color color,
+    required IconData icon,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        border: Border(left: BorderSide(color: color, width: 4)),
+      ),
+      child: Row(
+        children: [
+          HeltySolidIcon(
+            icon: icon,
+            color: color,
+            size: 26,
+            iconSize: 14,
+            radius: 7,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  caption,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chargeHeader() {
+    return Container(
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      child: Row(
+        children: [
+          const SizedBox(width: 4),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(
+                children: [
+                  const SizedBox(width: 40),
+                  _colGap(),
+                  _head('DESCRIPTION', flex: 4),
+                  _colGap(),
+                  _head('CATEGORY', flex: 3),
+                  _colGap(),
+                  _head('DETAILS', flex: 5),
+                  _colGap(),
+                  _head('AMOUNT', flex: 3, end: true),
+                  _colGap(),
+                  const SizedBox(width: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chargeTableRow(
+    ChargeItem item,
+    BillingInvoiceDetail invoice, {
+    required int zebraIndex,
+  }) {
+    final line = _billingLineForCharge(item, invoice);
+    final cs = Theme.of(context).colorScheme;
+    final status = _chargeStatus(item, line);
+    return Material(
+      color: zebraIndex.isOdd
+          ? cs.onSurface.withValues(alpha: 0.035)
+          : Colors.transparent,
+      child: InkWell(
+        onDoubleTap: line == null || item.isLineFullyPaid
+            ? null
+            : () => _showLinePaymentBottomSheet(line, item),
+        onLongPress: line == null || item.isLineFullyPaid
+            ? null
+            : () => _showLinePaymentBottomSheet(line, item),
+        onSecondaryTapDown: line == null || item.isLineFullyPaid
+            ? null
+            : (d) => _showLinePaymentMenuAt(d.globalPosition, line, item),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ColoredBox(color: status.$2, child: const SizedBox(width: 4)),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _lineCheckbox(item),
+                      _colGap(),
+                      Expanded(
+                        flex: 4,
+                        child: HeltyEllipsisText(
+                          text: item.description,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      _colGap(),
+                      Expanded(
+                        flex: 3,
+                        child: HeltyEllipsisChip(
+                          label: chargeCategoryLabel(item.category),
+                          color: _categoryColor(item.category),
+                        ),
+                      ),
+                      _colGap(),
+                      Expanded(flex: 5, child: _detailText(item, line)),
+                      _colGap(),
+                      Expanded(flex: 3, child: _amountCell(item, line)),
+                      _colGap(),
+                      _lineActions(line, item),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chargeCard(
+    ChargeItem item,
+    BillingInvoiceDetail invoice, {
+    required String indexLabel,
+  }) {
+    final line = _billingLineForCharge(item, invoice);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final status = _chargeStatus(item, line);
+    return HeltySurfaceCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onLongPress: line == null || item.isLineFullyPaid
+            ? null
+            : () => _showLinePaymentBottomSheet(line, item),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ColoredBox(color: status.$2, child: const SizedBox(width: 4)),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _lineCheckbox(item),
+                          const SizedBox(width: 8),
+                          Text(
+                            indexLabel,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: HeltyEllipsisText(
+                              text: item.description,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _lineActions(line, item),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _detailText(item, line),
+                      const SizedBox(height: 8),
+                      HeltyEllipsisChip(
+                        label: chargeCategoryLabel(item.category),
+                        color: _categoryColor(item.category),
+                      ),
+                      const SizedBox(height: 8),
+                      _amountCell(item, line),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _lineCheckbox(ChargeItem item) {
+    final selected = _selectedLineIdsForPay.contains(item.invoiceLineItemId);
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Center(
+        child: Checkbox(
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          value: selected,
+          onChanged: (v) {
+            setState(() {
+              if (v == true) {
+                _selectedLineIdsForPay.add(item.invoiceLineItemId);
+              } else {
+                _selectedLineIdsForPay.remove(item.invoiceLineItemId);
+              }
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  String _paidIndication(ChargeItem item) {
+    final paid = item.amountPaid.toFinancial(isMoney: true);
+    if (item.amountPaid <= 0.001) return 'Unpaid';
+    if (item.isLineFullyPaid) return 'Paid $paid';
+    return 'Part paid $paid';
+  }
+
+  Color _paidIndicationColor(ChargeItem item) {
+    if (item.amountPaid <= 0.001) return _accentPink;
+    if (item.isLineFullyPaid) return _accentGreen;
+    return _accentBlue;
+  }
+
+  String _usedFigure(ChargeItem item, BillingInvoiceItem? line) {
+    if (line != null && line.isRecurringDaily) {
+      final days = _usedDays(line);
+      if (days <= 0) return 'None';
+      final dayLabel = days == 1 ? 'day' : 'days';
+      return '$days $dayLabel';
+    }
+    if (item.quantity <= 1) return '1';
+    return '× ${item.quantity}';
+  }
+
+  String _usedIndication(ChargeItem item, BillingInvoiceItem? line) {
+    final figure = _usedFigure(item, line);
+    if (figure == 'None') return 'Not used';
+    return 'Used $figure';
+  }
+
+  Color _usedIndicationColor(ChargeItem item, BillingInvoiceItem? line) {
+    if (line != null && line.isRecurringDaily && _usedDays(line) <= 0) {
+      return Theme.of(context).colorScheme.outline;
+    }
+    return _accentTeal;
+  }
+
+  Widget _detailText(ChargeItem item, BillingInvoiceItem? line) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _chargeDetailLine(item, line),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 6),
+        HeltyEllipsisChip(
+          label: _paidIndication(item),
+          color: _paidIndicationColor(item),
+        ),
+        const SizedBox(height: 4),
+        HeltyEllipsisChip(
+          label: _usedIndication(item, line),
+          color: _usedIndicationColor(item, line),
+        ),
+      ],
+    );
+  }
+
+  Widget _amountCell(ChargeItem item, BillingInvoiceItem? line) {
+    final theme = Theme.of(context);
+    final covered = line?.lineCovered ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          item.displayLineTotal.toFinancial(isMoney: true),
+          textAlign: TextAlign.end,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: item.paymentProgress,
+            minHeight: 4,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            color: _paidIndicationColor(item),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerRight,
+          child: _amountMark(
+            'Paid',
+            item.amountPaid.toFinancial(isMoney: true),
+            _paidIndicationColor(item),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Align(
+          alignment: Alignment.centerRight,
+          child: _amountMark(
+            'Used',
+            _usedFigure(item, line),
+            _usedIndicationColor(item, line),
+          ),
+        ),
+        if (covered > 0.001) ...[
+          const SizedBox(height: 2),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _amountMark(
+              'Covered',
+              covered.toFinancial(isMoney: true),
+              _accentPurple,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _amountMark(String label, String value, Color color) {
+    final theme = Theme.of(context);
+    final shown = value.trim().isEmpty ? '—' : value.trim();
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          TextSpan(
+            text: '  $shown',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      textAlign: TextAlign.end,
+    );
+  }
+
+  Widget _lineActions(BillingInvoiceItem? line, ChargeItem item) {
+    if (line == null) {
+      return const SizedBox(width: 40);
+    }
+    if (_deletingLineIds.contains(line.id)) {
+      return const SizedBox(
+        width: 40,
+        height: 40,
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    return Builder(
+      builder: (anchor) => IconButton(
+        tooltip: 'More actions',
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        onPressed: () => _openLineMenu(anchor, line, item),
+        icon: Icon(
+          Icons.more_vert,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  void _openLineMenu(
+    BuildContext anchor,
+    BillingInvoiceItem line,
+    ChargeItem item,
+  ) {
+    final box = anchor.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final origin = box.localToGlobal(Offset.zero);
+    _showLinePaymentMenuAt(origin + Offset(0, box.size.height), line, item);
+  }
+
+  Widget _paymentsPane({required bool useCards}) {
+    final rows = _filteredPayments();
+    final window = _window(rows.length);
+    final page = rows.sublist(window.skip, window.end);
+    return _dataSurface(
+      useCards: useCards,
+      minWidth: 860,
+      emptyMessage: _mergedInvoicePayments.isEmpty
+          ? 'No payments recorded yet.'
+          : 'No payments match this search.',
+      total: rows.length,
+      skip: window.skip,
+      hasMore: window.hasMore,
+      shown: page.length,
+      footer: _countLabel(
+        skip: window.skip,
+        shown: page.length,
+        total: rows.length,
+        noun: 'payments',
+      ),
+      ribbon: _paneRibbon(
+        title: 'Payment ledger',
+        caption: 'Money recorded against this invoice.',
+        color: _accentGreen,
+        icon: Icons.payments_outlined,
+      ),
+      tableHeader: _ledgerHeader(
+        const ['METHOD', 'DATE', 'DETAILS', 'AMOUNT'],
+        flex: const [3, 2, 5, 2],
+        endLast: true,
+      ),
+      tableRow: (index) {
+        final row = page[index];
+        return _ledgerTableRow(
+          zebraIndex: window.skip + index,
+          stripe: _accentGreen,
+          cells: [
+            _ledgerText(_paymentTitle(row), strong: true),
+            _ledgerText(_paymentWhen(row)),
+            _ledgerText(_paymentDetails(row)),
+            _ledgerText(
+              row.amount.toFinancial(isMoney: true),
+              strong: true,
+              end: true,
+              color: _accentGreen,
+            ),
+          ],
+          flex: const [3, 2, 5, 2],
+        );
+      },
+      card: (index) {
+        final row = page[index];
+        return _ledgerCard(
+          stripe: _accentGreen,
+          title: _paymentTitle(row),
+          detail: '${_paymentWhen(row)} · ${_paymentDetails(row)}',
+          trailing: row.amount.toFinancial(isMoney: true),
+          trailingColor: _accentGreen,
+        );
+      },
+    );
+  }
+
+  List<BillingInvoicePayment> _filteredPayments() {
+    if (_lineQuery.isEmpty) return _mergedInvoicePayments;
+    return [
+      for (final row in _mergedInvoicePayments)
+        if (_paymentHaystack(row).contains(_lineQuery)) row,
+    ];
+  }
+
+  String _paymentHaystack(BillingInvoicePayment row) {
+    return [
+      row.method ?? '',
+      row.source,
+      row.notes ?? '',
+      row.receivedByName ?? '',
+      row.createdByName ?? '',
+      row.reference ?? '',
+    ].join(' ').toLowerCase();
+  }
+
+  String _paymentTitle(BillingInvoicePayment row) {
+    final method = row.method?.trim() ?? '';
+    if (method.isNotEmpty) return method;
+    return 'Invoice payment';
+  }
+
+  String _paymentWhen(BillingInvoicePayment row) {
+    final when = row.paidAt ?? row.createdAt;
+    if (when == null) return '—';
+    return _formatDate(when);
+  }
+
+  String _paymentDetails(BillingInvoicePayment row) {
+    final parts = <String>[];
+    if (row.source.trim().isNotEmpty) parts.add(row.source.trim());
+    final received = row.receivedByName?.trim() ?? '';
+    if (received.isNotEmpty) {
+      parts.add('Received by $received');
+    } else {
+      final id = row.receivedById?.trim() ?? '';
+      if (id.isNotEmpty) parts.add('Received by $id');
+    }
+    final created = row.createdByName?.trim() ?? '';
+    if (created.isNotEmpty && created != received) {
+      parts.add('Created by $created');
+    }
+    final note = row.notes?.trim() ?? '';
+    if (note.isNotEmpty) parts.add(note);
+    if (row.walletTransactionId?.trim().isNotEmpty == true) {
+      parts.add('Wallet');
+    }
+    if (parts.isEmpty) return '—';
+    return parts.join(' · ');
+  }
+
+  Widget _refundsPane(_BillSnapshot snap, {required bool useCards}) {
+    final historical = snap.invoice.refunds;
+    if (_refundRequestsLoading &&
+        _refundRequests.isEmpty &&
+        historical.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_refundRequestsError != null &&
+        _refundRequests.isEmpty &&
+        historical.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(_refundRequestsError!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: _loadRefundRequests,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final rows = _filteredRefunds(snap.invoice);
+    final window = _window(rows.length);
+    final page = rows.sublist(window.skip, window.end);
+    final empty = historical.isEmpty && _refundRequests.isEmpty
+        ? 'No refund requests or completed refunds for this invoice.'
+        : 'No refunds match this search.';
+    return _dataSurface(
+      useCards: useCards,
+      minWidth: 980,
+      emptyMessage: empty,
+      total: rows.length,
+      skip: window.skip,
+      hasMore: window.hasMore,
+      shown: page.length,
+      footer: _countLabel(
+        skip: window.skip,
+        shown: page.length,
+        total: rows.length,
+        noun: 'refunds',
+      ),
+      ribbon: _paneRibbon(
+        title: 'Refund ledger',
+        caption: 'Requests and completed refunds on this invoice.',
+        color: _accentPink,
+        icon: Icons.assignment_return_outlined,
+      ),
+      tableHeader: _ledgerHeader(
+        const ['ITEM', 'STATUS', 'REASON', 'WHEN', 'AMOUNT'],
+        flex: const [4, 2, 4, 2, 2],
+        endLast: true,
+      ),
+      tableRow: (index) {
+        final row = page[index];
+        return _ledgerTableRow(
+          zebraIndex: window.skip + index,
+          stripe: row.color,
+          cells: [
+            _ledgerText(row.title, strong: true),
+            HeltyEllipsisChip(label: row.status, color: row.color),
+            _ledgerText(row.reason),
+            _ledgerText(row.when),
+            _ledgerText(row.amount, strong: true, end: true),
+          ],
+          flex: const [4, 2, 4, 2, 2],
+        );
+      },
+      card: (index) {
+        final row = page[index];
+        return _ledgerCard(
+          stripe: row.color,
+          title: row.title,
+          detail: '${row.when} · ${row.reason}',
+          chip: row.status,
+          chipColor: row.color,
+          trailing: row.amount,
+        );
+      },
+    );
+  }
+
+  List<_RefundLine> _filteredRefunds(BillingInvoiceDetail invoice) {
+    final rows = <_RefundLine>[
+      for (final refund in invoice.refunds)
+        _RefundLine(
+          title: 'Completed refund',
+          status: 'Refunded',
+          reason: (refund.reason ?? '').trim(),
+          when: refund.createdAt == null ? '—' : _formatDate(refund.createdAt!),
+          amount: refund.amount.toFinancial(isMoney: true),
+          color: _accentGreen,
+        ),
+      for (final request in _refundRequests)
+        _RefundLine(
+          title: _refundTitle(request, invoice),
+          status: request.status,
+          reason: _refundReason(request),
+          when: request.submittedAt == null
+              ? '—'
+              : _formatDate(request.submittedAt!),
+          amount: '—',
+          color: _toneForStatus(request.status),
+        ),
+    ];
+    if (_lineQuery.isEmpty) return rows;
+    return [
+      for (final row in rows)
+        if ('${row.title} ${row.status} ${row.reason} ${row.when}'
+            .toLowerCase()
+            .contains(_lineQuery))
+          row,
+    ];
+  }
+
+  String _refundTitle(
+    BillingInvoiceRefundRequest request,
+    BillingInvoiceDetail invoice,
+  ) {
+    final desc = request.lineDescription?.trim() ?? '';
+    if (desc.isNotEmpty) return desc;
+    final itemId = request.invoiceItemId;
+    if (itemId != null) {
+      for (final line in invoice.invoiceItems) {
+        if (line.id == itemId) return line.displayLabel;
+      }
+    }
+    return itemId ?? '—';
+  }
+
+  String _refundReason(BillingInvoiceRefundRequest request) {
+    final parts = <String>[];
+    if (request.reason.trim().isNotEmpty) parts.add(request.reason.trim());
+    final reject = request.rejectReason?.trim() ?? '';
+    if (reject.isNotEmpty) parts.add('Rejection: $reject');
+    final by = request.requestedBy?.trim() ?? '';
+    if (by.isNotEmpty) parts.add(by);
+    return parts.join(' · ');
+  }
+
+  Color _toneForStatus(String status) {
+    final value = status.toLowerCase();
+    if (value.contains('reject') ||
+        value.contains('cancel') ||
+        value.contains('fail')) {
+      return _accentPink;
+    }
+    if (value.contains('approv') ||
+        value.contains('complete') ||
+        value.contains('refund') ||
+        value.contains('paid') ||
+        value.contains('settle')) {
+      return _accentGreen;
+    }
+    if (value.contains('pend') ||
+        value.contains('submit') ||
+        value.contains('open')) {
+      return _accentAmber;
+    }
+    return _accentBlue;
+  }
+
+  Widget _ledgerHeader(
+    List<String> labels, {
+    required List<int> flex,
+    required bool endLast,
+  }) {
+    return Container(
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      child: Row(
+        children: [
+          const SizedBox(width: 4),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(
+                children: [
+                  for (var i = 0; i < labels.length; i++) ...[
+                    if (i > 0) _colGap(),
+                    _head(
+                      labels[i],
+                      flex: flex[i],
+                      end: endLast && i == labels.length - 1,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ledgerTableRow({
+    required int zebraIndex,
+    required Color stripe,
+    required List<Widget> cells,
+    required List<int> flex,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: zebraIndex.isOdd
+          ? cs.onSurface.withValues(alpha: 0.035)
+          : Colors.transparent,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ColoredBox(color: stripe, child: const SizedBox(width: 4)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < cells.length; i++) ...[
+                      if (i > 0) _colGap(),
+                      Expanded(flex: flex[i], child: cells[i]),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ledgerCard({
+    required Color stripe,
+    required String title,
+    required String detail,
+    required String trailing,
+    Color? trailingColor,
+    String? chip,
+    Color? chipColor,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return HeltySurfaceCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ColoredBox(color: stripe, child: const SizedBox(width: 4)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: HeltyEllipsisText(
+                            text: title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        HeltyEllipsisText(
+                          text: trailing,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: trailingColor ?? cs.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    HeltyEllipsisText(
+                      text: detail,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    if (chip != null && chipColor != null) ...[
+                      const SizedBox(height: 8),
+                      HeltyEllipsisChip(label: chip, color: chipColor),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ledgerText(
+    String text, {
+    bool strong = false,
+    bool end = false,
+    Color? color,
+  }) {
+    final theme = Theme.of(context);
+    return HeltyEllipsisText(
+      text: text,
+      align: end ? TextAlign.end : TextAlign.start,
+      style: (strong ? theme.textTheme.titleSmall : theme.textTheme.bodySmall)
+          ?.copyWith(
+            fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+            color:
+                color ?? (strong ? null : theme.colorScheme.onSurfaceVariant),
+          ),
+    );
+  }
+
+  Widget _dataSurface({
+    required bool useCards,
+    required double minWidth,
+    required String emptyMessage,
+    required int total,
+    required int skip,
+    required bool hasMore,
+    required int shown,
+    required String footer,
+    Widget? ribbon,
+    required Widget tableHeader,
+    required Widget Function(int index) tableRow,
+    required Widget Function(int index) card,
+  }) {
+    final pager = _pager(
+      skip: skip,
+      shown: shown,
+      total: total,
+      hasMore: hasMore,
+      label: footer,
+    );
+    final body = shown == 0
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                emptyMessage,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          )
+        : useCards
+        ? ListView.builder(itemCount: shown, itemBuilder: (_, i) => card(i))
+        : ListView.separated(
+            itemCount: shown,
+            separatorBuilder: (_, _) => Divider(
+              height: 1,
+              color: Theme.of(
+                context,
+              ).colorScheme.outline.withValues(alpha: 0.08),
+            ),
+            itemBuilder: (_, i) => tableRow(i),
+          );
+
+    if (useCards) {
+      return Column(
+        children: [
+          if (ribbon != null) ribbon,
+          Expanded(child: body),
+          pager,
+        ],
+      );
+    }
+
+    return HeltySurfaceCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          if (ribbon != null) ribbon,
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, inner) {
+                final tableWidth = inner.maxWidth < minWidth
+                    ? minWidth
+                    : inner.maxWidth;
+                final sheet = SizedBox(
+                  width: tableWidth,
+                  height: inner.maxHeight,
+                  child: Column(
+                    children: [
+                      tableHeader,
+                      Expanded(child: body),
+                    ],
+                  ),
+                );
+                if (inner.maxWidth >= minWidth) return sheet;
+                return _BillHorizontalScroll(child: sheet);
+              },
+            ),
+          ),
+          pager,
+        ],
+      ),
+    );
+  }
+
+  String _countLabel({
+    required int skip,
+    required int shown,
+    required int total,
+    required String noun,
+    String? extra,
+  }) {
+    if (total == 0) return 'No $noun to display';
+    final start = skip + 1;
+    final end = skip + shown;
+    final base = 'Showing $start–$end of $total $noun';
+    if (extra == null || extra.isEmpty) return base;
+    return '$base · $extra';
+  }
+
+  Widget _pager({
+    required int skip,
+    required int shown,
+    required int total,
+    required bool hasMore,
+    required String label,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final page = total == 0 ? 1 : (skip ~/ _billPageSize) + 1;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: HeltyEllipsisText(
+              text: label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Previous page',
+            onPressed: skip > 0 ? () => _goPrev(skip) : null,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$page',
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Next page',
+            onPressed: hasMore ? () => _goNext(total, skip) : null,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _head(String label, {required int flex, bool end = false}) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        label,
+        textAlign: end ? TextAlign.end : TextAlign.start,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.55),
+        ),
+      ),
+    );
+  }
+
+  Widget _colGap() => const SizedBox(width: 20);
+
+  Widget _coverageActions(BillingInvoiceDetail? detail) {
+    final staff = ref.read(authProvider).staff;
+    final hasActiveHmo =
+        detail != null && activeHmoInvoiceCoverage(detail.coverages) != null;
+    final canSplit =
+        detail != null &&
+        canSplitWithHmo(staff) &&
+        detail.status.toUpperCase() != 'PAID' &&
+        (detail.patientHmoId ?? '').trim().isNotEmpty &&
+        !hasActiveHmo;
+    final canDiscount =
+        detail != null &&
+        canApplyDiscount(staff) &&
+        detail.status.toUpperCase() != 'PAID';
+    final policiesByReason = <String, List<DiscountPolicy>>{};
+    for (final policy in _discountPolicies) {
+      policiesByReason.putIfAbsent(policy.reason, () => []).add(policy);
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        FilledButton.tonalIcon(
+          style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+          onPressed: canSplit && !_coverageBusy ? _applyHmoSplit : null,
+          icon: const Icon(Icons.local_hospital_outlined, size: 16),
+          label: const Text('Split with HMO'),
+        ),
+        Tooltip(
+          message: _discountPolicies.isEmpty
+              ? 'No active discount policies'
+              : 'Apply a discount policy',
+          child: PopupMenuButton<String>(
+            enabled:
+                canDiscount && !_coverageBusy && _discountPolicies.isNotEmpty,
+            onSelected: _applyDiscountPolicy,
+            itemBuilder: (context) {
+              final entries = <PopupMenuEntry<String>>[];
+              final keys = policiesByReason.keys.toList()..sort();
+              for (final reason in keys) {
+                entries.add(
+                  PopupMenuItem<String>(
+                    enabled: false,
+                    child: Text(
+                      reason,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                );
+                for (final policy in policiesByReason[reason]!) {
+                  entries.add(
+                    PopupMenuItem<String>(
+                      value: policy.id,
+                      child: Text('${policy.name} (${policy.value})'),
+                    ),
+                  );
+                }
+              }
+              return entries;
+            },
+            child: const Chip(
+              avatar: Icon(Icons.discount_outlined, size: 16),
+              label: Text('Apply discount'),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _coverageList(BillingInvoiceDetail? detail, {required bool scroll}) {
+    final theme = Theme.of(context);
+    if (detail == null || detail.coverages.isEmpty) {
+      return Text(
+        'No coverage or discount applied yet.',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+    final staff = ref.read(authProvider).staff;
+    final canReverse = canReverseCoverage(staff);
+    final tiles = [
+      for (final coverage in detail.coverages)
+        _coverageTile(coverage, canReverse: canReverse),
+    ];
+    if (!scroll) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: tiles,
+      );
+    }
+    return ListView(children: tiles);
+  }
+
+  Widget _coverageTile(InvoiceCoverage coverage, {required bool canReverse}) {
+    final isHmo = coverage.kind.trim().toUpperCase() == 'HMO';
+    final status = coverage.status.toUpperCase();
+    final canUndo =
+        canReverse &&
+        status != 'SETTLED' &&
+        status != 'REVERSED' &&
+        (!isHmo || isHmoCoverageReversibleWithin24h(coverage));
+    final windowLabel = isHmo ? formatHmoReverseWindowLabel(coverage) : '';
+    final tip = [
+      '${coverage.mode ?? '-'} ${coverage.value ?? coverage.percent ?? ''}',
+      coverage.appliedByName ?? coverage.appliedById ?? '',
+      if (windowLabel.isNotEmpty) windowLabel,
+    ].where((part) => part.trim().isNotEmpty).join(' · ');
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Tooltip(
+        message: tip,
+        waitDuration: const Duration(milliseconds: 350),
+        child: Row(
+          children: [
+            Expanded(
+              child: HeltyEllipsisText(
+                text:
+                    '${coverage.kind} · ${coverage.scope} · ${coverage.status}',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+            const SizedBox(width: 8),
+            HeltyEllipsisText(
+              text: coverage.computedAmount.toFinancial(isMoney: true),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (canUndo)
+              IconButton(
+                tooltip: isHmo ? 'Uncover HMO' : 'Reverse coverage',
+                visualDensity: VisualDensity.compact,
+                onPressed: _coverageBusy
+                    ? null
+                    : () => _reverseCoverage(coverage),
+                icon: const Icon(Icons.undo_outlined, size: 18),
+              ),
+          ],
         ),
       ),
     );
@@ -2164,930 +4696,6 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           _loadBillingData();
         },
       ),
-    );
-  }
-
-  // ==========================================
-  // WIDGET BUILDERS
-  // ==========================================
-
-  Widget _buildFinancialSummary(
-    ColorScheme colorScheme, {
-    required double balanceDue,
-    required double totalCharges,
-    required double totalPayments,
-    required double coveredAmount,
-    required double effectivePayable,
-    required double walletBalance,
-    String? patientHmoName,
-    double? patientHmoDefaultCoveragePercent,
-  }) {
-    final displayBalanceDue = (balanceDue - walletBalance) > 0
-        ? (balanceDue - walletBalance)
-        : 0.0;
-    final bool isPaidOff = displayBalanceDue <= 0;
-    final hmoName = patientHmoName?.trim() ?? '';
-    final hmoLabel = hmoName.isEmpty
-        ? null
-        : patientHmoDefaultCoveragePercent != null
-        ? '$hmoName (${patientHmoDefaultCoveragePercent.round()}% default)'
-        : hmoName;
-
-    Widget moneyLine(String label, String value, {Color? valueColor}) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                  color: valueColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final balance = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Total Balance Due',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          displayBalanceDue.toFinancial(isMoney: true),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: isPaidOff ? DepartmentColors.pharmacy : colorScheme.error,
-          ),
-        ),
-        if (isPaidOff)
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: DepartmentColors.pharmacy.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Text(
-              'CLEARED',
-              style: TextStyle(
-                color: DepartmentColors.pharmacy,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-      ],
-    );
-
-    final breakdown = Column(
-      children: [
-        moneyLine('Total Charges:', totalCharges.toFinancial(isMoney: true)),
-        moneyLine(
-          'Covered/Discount:',
-          coveredAmount.toFinancial(isMoney: true),
-          valueColor: Colors.deepPurple,
-        ),
-        moneyLine(
-          'Effective Payable:',
-          effectivePayable.toFinancial(isMoney: true),
-        ),
-        moneyLine(
-          'Total Paid:',
-          totalPayments.toFinancial(isMoney: true),
-          valueColor: DepartmentColors.pharmacy,
-        ),
-        moneyLine(
-          'Wallet Balance:',
-          walletBalance.toFinancial(isMoney: true),
-          valueColor: DepartmentColors.outpatientClinic,
-        ),
-        if (hmoLabel != null)
-          moneyLine('HMO:', hmoLabel, valueColor: colorScheme.primary),
-      ],
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: colorScheme.outlineVariant, width: 1),
-        ),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 640) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                balance,
-                const SizedBox(height: 12),
-                Divider(height: 1, color: colorScheme.outlineVariant),
-                const SizedBox(height: 12),
-                breakdown,
-              ],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 2, child: balance),
-              Container(
-                width: 1,
-                height: 40,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                color: colorScheme.outlineVariant,
-              ),
-              Expanded(flex: 3, child: breakdown),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildChargesTab(
-    ColorScheme colorScheme,
-    List<ChargeItem> charges,
-    BillingInvoiceDetail? detail,
-  ) {
-    // Group charges by Category
-    final groupedCharges = <ChargeCategory, List<ChargeItem>>{};
-    for (var charge in charges) {
-      groupedCharges.putIfAbsent(charge.category, () => []).add(charge);
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildCoveragePanel(detail),
-        const SizedBox(height: 12),
-        _buildSectionHeader('Compulsory & Daily Charges'),
-        _buildChargeGroup(
-          colorScheme,
-          groupedCharges[ChargeCategory.daily] ?? [],
-          detail,
-        ),
-        const SizedBox(height: 24),
-
-        _buildSectionHeader('Pharmacy & Medications'),
-        _buildChargeGroup(
-          colorScheme,
-          groupedCharges[ChargeCategory.pharmacy] ?? [],
-          detail,
-        ),
-        const SizedBox(height: 24),
-
-        _buildSectionHeader('Laboratory & Diagnostics'),
-        _buildChargeGroup(colorScheme, [
-          ...?groupedCharges[ChargeCategory.lab],
-          ...?groupedCharges[ChargeCategory.radiology],
-        ], detail),
-        const SizedBox(height: 24),
-
-        _buildSectionHeader('Supplies & Consumables'),
-        _buildChargeGroup(
-          colorScheme,
-          groupedCharges[ChargeCategory.supplies] ?? [],
-          detail,
-        ),
-        const SizedBox(height: 24),
-
-        _buildSectionHeader('Other'),
-        _buildChargeGroup(
-          colorScheme,
-          groupedCharges[ChargeCategory.other] ?? [],
-          detail,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChargeGroup(
-    ColorScheme colorScheme,
-    List<ChargeItem> items,
-    BillingInvoiceDetail? detail,
-  ) {
-    if (items.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Text(
-          'No charges in this category yet.',
-          style: TextStyle(
-            fontStyle: FontStyle.italic,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      );
-    }
-
-    final canDeleteLine = canDeleteInpatientInvoice(
-      ref.read(authProvider).staff,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Card(
-          elevation: 0,
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: colorScheme.outlineVariant),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final line = _billingLineForCharge(item, detail);
-              final selected = _selectedLineIdsForPay.contains(
-                item.invoiceLineItemId,
-              );
-              final theme = Theme.of(context);
-              final trailingAmount = item.lineAmountDue > 0.001
-                  ? item.lineAmountDue
-                  : item.displayLineTotal;
-              return Material(
-                color: Colors.transparent,
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: Checkbox(
-                          value: selected,
-                          onChanged: detail == null
-                              ? null
-                              : (v) {
-                                  setState(() {
-                                    if (v == true) {
-                                      _selectedLineIdsForPay.add(
-                                        item.invoiceLineItemId,
-                                      );
-                                    } else {
-                                      _selectedLineIdsForPay.remove(
-                                        item.invoiceLineItemId,
-                                      );
-                                    }
-                                  });
-                                },
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onSecondaryTapDown:
-                              line == null || item.isLineFullyPaid
-                              ? null
-                              : (d) => _showLinePaymentMenuAt(
-                                  d.globalPosition,
-                                  line,
-                                  item,
-                                ),
-                          onLongPress: line == null || item.isLineFullyPaid
-                              ? null
-                              : () => _showLinePaymentBottomSheet(line, item),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Positioned.fill(
-                                  child: _chargeRowPaymentBackdrop(item),
-                                ),
-                                ListTile(
-                                  tileColor: Colors.transparent,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  title: Text(
-                                    item.description,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (line != null) ...[
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 4,
-                                          crossAxisAlignment:
-                                              WrapCrossAlignment.center,
-                                          children: [
-                                            _chargeLineKindBadge(line, theme),
-                                            if (line.refundPending)
-                                              _refundPendingBadge(theme),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                      ],
-                                      if (line != null && line.isRecurringDaily)
-                                        _recurringDailySubtitle(line, theme)
-                                      else
-                                        Row(
-                                          children: [
-                                            Flexible(
-                                              child: Text(
-                                                _formatDate(item.date),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: theme.textTheme.bodySmall
-                                                    ?.copyWith(
-                                                      color: theme
-                                                          .colorScheme
-                                                          .onSurfaceVariant,
-                                                    ),
-                                              ),
-                                            ),
-                                            if (item.quantity > 1) ...[
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'Qty: ${item.quantity}',
-                                                style: theme.textTheme.bodySmall
-                                                    ?.copyWith(
-                                                      color: theme
-                                                          .colorScheme
-                                                          .primary,
-                                                    ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        _chargeLinePaymentSummary(item, line),
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                              color: theme
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
-                                            ),
-                                      ),
-                                      if (line?.createdByName != null) ...[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Added by ${line!.createdByName}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: theme.textTheme.labelSmall
-                                              ?.copyWith(
-                                                color: theme
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
-                                                fontStyle: FontStyle.italic,
-                                              ),
-                                        ),
-                                      ],
-                                      const SizedBox(height: 6),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              trailingAmount.toFinancial(
-                                                isMoney: true,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 14,
-                                                color: item.isLineFullyPaid
-                                                    ? theme.colorScheme.tertiary
-                                                    : null,
-                                              ),
-                                            ),
-                                            if (item.lineAmountDue > 0.001 &&
-                                                item.amountPaid > 0.001)
-                                              Text(
-                                                'due',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  color: theme
-                                                      .colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            if (item.quantity > 1)
-                                              Text(
-                                                '${item.amount.toFinancial(isMoney: true)} / unit',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  color: theme
-                                                      .colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: Builder(
-                                    builder: (btnCtx) {
-                                      final refundBtn = line == null
-                                          ? null
-                                          : _lineRefundActionButton(line);
-                                      final deletingLine =
-                                          line != null &&
-                                          _deletingLineIds.contains(line.id);
-                                      return Wrap(
-                                        alignment: WrapAlignment.end,
-                                        children: [
-                                          ?refundBtn,
-                                          if (canDeleteLine && line != null)
-                                            IconButton(
-                                              tooltip: 'Delete item',
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(
-                                                minWidth: 36,
-                                                minHeight: 36,
-                                              ),
-                                              icon: deletingLine
-                                                  ? SizedBox(
-                                                      width: 18,
-                                                      height: 18,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: theme
-                                                                .colorScheme
-                                                                .error,
-                                                          ),
-                                                    )
-                                                  : Icon(
-                                                      Icons.delete_outline,
-                                                      size: 22,
-                                                      color: theme
-                                                          .colorScheme
-                                                          .error,
-                                                    ),
-                                              onPressed: deletingLine
-                                                  ? null
-                                                  : () => _deleteInvoiceLine(
-                                                      line: line,
-                                                      charge: item,
-                                                    ),
-                                            ),
-                                          IconButton(
-                                            tooltip: 'Payment options',
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(
-                                              minWidth: 36,
-                                              minHeight: 36,
-                                            ),
-                                            icon: const Icon(
-                                              Icons.payment_outlined,
-                                              size: 22,
-                                            ),
-                                            onPressed:
-                                                line == null ||
-                                                    item.isLineFullyPaid
-                                                ? null
-                                                : () {
-                                                    final box =
-                                                        btnCtx.findRenderObject()
-                                                            as RenderBox?;
-                                                    if (box == null) return;
-                                                    final o = box.localToGlobal(
-                                                      Offset.zero,
-                                                    );
-                                                    _showLinePaymentMenuAt(
-                                                      o +
-                                                          Offset(
-                                                            0,
-                                                            box.size.height,
-                                                          ),
-                                                      line,
-                                                      item,
-                                                    );
-                                                  },
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 6, right: 4),
-          child: Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 12,
-            runSpacing: 4,
-            children: [
-              Text(
-                'Total: ${chargeSectionTotal(items).toFinancial(isMoney: true)}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                'Paid: ${chargeSectionPaid(items).toFinancial(isMoney: true)}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                'Due: ${chargeSectionDue(items).toFinancial(isMoney: true)}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCoveragePanel(BillingInvoiceDetail? detail) {
-    if (detail == null) return const SizedBox.shrink();
-    final staff = ref.read(authProvider).staff;
-    final hasActiveHmo = activeHmoInvoiceCoverage(detail.coverages) != null;
-    final canSplit =
-        canSplitWithHmo(staff) &&
-        detail.status.toUpperCase() != 'PAID' &&
-        (detail.patientHmoId ?? '').trim().isNotEmpty &&
-        !hasActiveHmo;
-    final canDiscount =
-        canApplyDiscount(staff) && detail.status.toUpperCase() != 'PAID';
-    final canReverse = canReverseCoverage(staff);
-
-    final policiesByReason = <String, List<DiscountPolicy>>{};
-    for (final p in _discountPolicies) {
-      policiesByReason.putIfAbsent(p.reason, () => []).add(p);
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.tonalIcon(
-                  onPressed: canSplit && !_coverageBusy ? _applyHmoSplit : null,
-                  icon: const Icon(Icons.local_hospital_outlined),
-                  label: const Text('Split with HMO'),
-                ),
-                PopupMenuButton<String>(
-                  enabled:
-                      canDiscount &&
-                      !_coverageBusy &&
-                      _discountPolicies.isNotEmpty,
-                  onSelected: _applyDiscountPolicy,
-                  itemBuilder: (context) {
-                    final entries = <PopupMenuEntry<String>>[];
-                    final keys = policiesByReason.keys.toList()..sort();
-                    for (final reason in keys) {
-                      entries.add(
-                        PopupMenuItem<String>(
-                          enabled: false,
-                          child: Text(
-                            reason,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      );
-                      for (final policy in policiesByReason[reason]!) {
-                        entries.add(
-                          PopupMenuItem<String>(
-                            value: policy.id,
-                            child: Text('${policy.name} (${policy.value})'),
-                          ),
-                        );
-                      }
-                    }
-                    return entries;
-                  },
-                  child: const Chip(
-                    avatar: Icon(Icons.discount_outlined, size: 16),
-                    label: Text('Apply discount'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (detail.coverages.isEmpty)
-              const Text('No coverage/discount applied yet.')
-            else
-              ...detail.coverages.map((c) {
-                final isHmo = c.kind.trim().toUpperCase() == 'HMO';
-                final status = c.status.toUpperCase();
-                final canUndoThis =
-                    canReverse &&
-                    status != 'SETTLED' &&
-                    status != 'REVERSED' &&
-                    (!isHmo || isHmoCoverageReversibleWithin24h(c));
-                final windowLabel = isHmo ? formatHmoReverseWindowLabel(c) : '';
-                return ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    '${c.kind} · ${c.scope} · ${c.status}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    [
-                      '${c.mode ?? '-'} ${c.value ?? c.percent ?? ''} · ${c.appliedByName ?? c.appliedById ?? 'N/A'}',
-                      if (windowLabel.isNotEmpty) windowLabel,
-                    ].join('\n'),
-                  ),
-                  trailing: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        c.computedAmount.toFinancial(isMoney: true),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (canUndoThis)
-                        IconButton(
-                          tooltip: isHmo ? 'Uncover HMO' : 'Reverse coverage',
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 36,
-                            minHeight: 36,
-                          ),
-                          onPressed: _coverageBusy
-                              ? null
-                              : () => _reverseCoverage(c),
-                          icon: const Icon(Icons.undo_outlined),
-                        ),
-                    ],
-                  ),
-                );
-              }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentsTab(ColorScheme colorScheme) {
-    final payments = _mergedInvoicePayments;
-    if (payments.isEmpty) {
-      return const Center(child: Text('No payments recorded yet.'));
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: payments.length,
-      itemBuilder: (context, index) {
-        final row = payments[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          color: DepartmentColors.pharmacy.withValues(alpha: 0.05),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              child: const Icon(
-                Icons.check_circle,
-                color: DepartmentColors.pharmacy,
-              ),
-            ),
-            title: Text(
-              row.method != null && row.method!.trim().isNotEmpty
-                  ? 'Invoice payment (${row.method})'
-                  : 'Invoice payment',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  [
-                    '${_formatDate((row.paidAt ?? row.createdAt) ?? DateTime.now())} • ${row.source}',
-                    if (row.receivedByName != null &&
-                        row.receivedByName!.trim().isNotEmpty)
-                      'Received by: ${row.receivedByName}',
-                    if ((row.receivedByName == null ||
-                            row.receivedByName!.trim().isEmpty) &&
-                        row.receivedById != null &&
-                        row.receivedById!.trim().isNotEmpty)
-                      'Received by ID: ${row.receivedById}',
-                    if (row.createdByName != null &&
-                        row.createdByName!.trim().isNotEmpty &&
-                        row.createdByName != row.receivedByName)
-                      'Created by: ${row.createdByName}',
-                    if (row.walletTransactionId != null &&
-                        row.walletTransactionId!.trim().isNotEmpty)
-                      'Wallet Txn: ${row.walletTransactionId}',
-                    if (row.notes != null && row.notes!.trim().isNotEmpty)
-                      'Note: ${row.notes}',
-                  ].join('\n'),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  row.amount.toFinancial(isMoney: true),
-                  style: const TextStyle(
-                    color: DepartmentColors.pharmacy,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRefundRequestsTab(
-    ColorScheme colorScheme,
-    BillingInvoiceDetail? detail,
-  ) {
-    final historicalRefunds = detail?.refunds ?? const [];
-    if (_refundRequestsLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_refundRequestsError != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(_refundRequestsError!),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _loadRefundRequests,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_refundRequests.isEmpty && historicalRefunds.isEmpty) {
-      return const Center(
-        child: Text(
-          'No refund requests or completed refunds for this invoice.',
-        ),
-      );
-    }
-
-    String lineLabel(BillingInvoiceRefundRequest r) {
-      if (r.lineDescription != null && r.lineDescription!.trim().isNotEmpty) {
-        return r.lineDescription!;
-      }
-      final itemId = r.invoiceItemId;
-      if (itemId != null && detail != null) {
-        for (final line in detail.invoiceItems) {
-          if (line.id == itemId) return line.displayLabel;
-        }
-      }
-      return itemId ?? '—';
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (historicalRefunds.isNotEmpty) ...[
-          Text(
-            'Completed refunds',
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          ...historicalRefunds.map(
-            (r) => Card(
-              elevation: 0,
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: const Icon(Icons.undo_rounded),
-                title: Text(r.amount.toFinancial(isMoney: true)),
-                subtitle: Text(
-                  [
-                    if (r.createdAt != null) _formatDate(r.createdAt!),
-                    if (r.reason != null && r.reason!.trim().isNotEmpty)
-                      r.reason!,
-                  ].join(' • '),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-        Text(
-          'Refund requests',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        if (_refundRequests.isEmpty)
-          const Text('No refund requests submitted yet.')
-        else
-          ..._refundRequests.map(
-            (r) => Card(
-              elevation: 0,
-              margin: const EdgeInsets.only(bottom: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: colorScheme.outlineVariant),
-              ),
-              child: ListTile(
-                title: Text(
-                  lineLabel(r),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  [
-                    'Status: ${r.status}',
-                    if (r.requestedBy != null) 'By: ${r.requestedBy}',
-                    if (r.submittedAt != null)
-                      'Submitted: ${_formatDate(r.submittedAt!)}',
-                    if (r.resolvedAt != null)
-                      'Resolved: ${_formatDate(r.resolvedAt!)}',
-                    'Reason: ${r.reason}',
-                    if (r.rejectReason != null &&
-                        r.rejectReason!.trim().isNotEmpty)
-                      'Rejection: ${r.rejectReason}',
-                  ].join('\n'),
-                ),
-                isThreeLine: true,
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -3228,21 +4836,70 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       ).showSnackBar(SnackBar(content: Text('Discharge failed: $e')));
     }
   }
+}
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
+class _BillSnapshot {
+  const _BillSnapshot({
+    required this.patientUuid,
+    required this.patientDisplayId,
+    required this.invoiceDisplayId,
+    required this.patientName,
+    required this.charges,
+    required this.totalCharges,
+    required this.totalPayments,
+    required this.balanceDue,
+    required this.invoice,
+    required this.canDelete,
+  });
+
+  final String patientUuid;
+  final String patientDisplayId;
+  final String invoiceDisplayId;
+  final String patientName;
+  final List<ChargeItem> charges;
+  final double totalCharges;
+  final double totalPayments;
+  final double balanceDue;
+  final BillingInvoiceDetail invoice;
+  final bool canDelete;
+}
+
+class _BillGroup {
+  const _BillGroup({
+    required this.key,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.total,
+    required this.paid,
+    required this.count,
+  });
+
+  final String key;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final double total;
+  final double paid;
+  final int count;
+}
+
+class _RefundLine {
+  const _RefundLine({
+    required this.title,
+    required this.status,
+    required this.reason,
+    required this.when,
+    required this.amount,
+    required this.color,
+  });
+
+  final String title;
+  final String status;
+  final String reason;
+  final String when;
+  final String amount;
+  final Color color;
 }
 
 // ==========================================
@@ -3683,6 +5340,99 @@ class _AddConsumablesSheetState extends State<_AddConsumablesSheet> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Horizontal table scroller. The scrollbar must use this same controller.
+class _BillHorizontalScroll extends StatefulWidget {
+  const _BillHorizontalScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_BillHorizontalScroll> createState() => _BillHorizontalScrollState();
+}
+
+class _BillHorizontalScrollState extends State<_BillHorizontalScroll> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      notificationPredicate: (notification) =>
+          notification.metrics.axis == Axis.horizontal,
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _BreathingWash extends StatefulWidget {
+  const _BreathingWash({required this.color, required this.child});
+
+  final Color color;
+  final Widget child;
+
+  @override
+  State<_BreathingWash> createState() => _BreathingWashState();
+}
+
+class _BreathingWashState extends State<_BreathingWash>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_pulse.value);
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: widget.color.withValues(alpha: 0.08 + (0.10 * t)),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: widget.color.withValues(alpha: 0.35 + (0.35 * t)),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: 0.12 + (0.22 * t)),
+                blurRadius: 10 + (14 * t),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }

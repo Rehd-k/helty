@@ -12,6 +12,9 @@ String _formatPdfDate(DateTime date) {
 }
 
 /// Builds the inpatient bill invoice PDF for print / share.
+///
+/// [itemized] lists every charge. A summary lists each category once, with
+/// its total and the amount paid.
 Future<List<int>> buildInpatientInvoicePdf({
   required PdfPageFormat format,
   required String patientDisplayId,
@@ -22,6 +25,7 @@ Future<List<int>> buildInpatientInvoicePdf({
   required double totalPayments,
   required double balanceDue,
   required double walletBalance,
+  required bool itemized,
 }) async {
   final logoBytes = await rootBundle.load(OrgConfig.instance.logoAsset);
   final logo = pw.MemoryImage(logoBytes.buffer.asUint8List());
@@ -227,6 +231,119 @@ Future<List<int>> buildInpatientInvoicePdf({
     return widgets;
   }
 
+  final categorySections = <(String, List<ChargeItem>)>[
+    (
+      chargeCategoryLabel(ChargeCategory.daily),
+      grouped[ChargeCategory.daily] ?? const [],
+    ),
+    (
+      chargeCategoryLabel(ChargeCategory.pharmacy),
+      grouped[ChargeCategory.pharmacy] ?? const [],
+    ),
+    (
+      chargeCategoryLabel(ChargeCategory.lab),
+      grouped[ChargeCategory.lab] ?? const [],
+    ),
+    (
+      chargeCategoryLabel(ChargeCategory.supplies),
+      grouped[ChargeCategory.supplies] ?? const [],
+    ),
+    (
+      chargeCategoryLabel(ChargeCategory.other),
+      grouped[ChargeCategory.other] ?? const [],
+    ),
+  ];
+
+  pw.Widget summaryCell(String text, {bool bold = false, bool end = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      child: pw.Align(
+        alignment: end ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
+        child: pw.Text(
+          text,
+          style: pw.TextStyle(
+            fontSize: 9.5,
+            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<pw.Widget> summaryTable() {
+    final rows = categorySections.where((row) => row.$2.isNotEmpty).toList();
+    if (rows.isEmpty) {
+      return [
+        pw.Text(
+          'No charges on this invoice.',
+          style: pw.TextStyle(
+            color: PdfColors.grey600,
+            fontSize: 9,
+            fontStyle: pw.FontStyle.italic,
+          ),
+        ),
+      ];
+    }
+    final totalPaid = rows.fold<double>(
+      0,
+      (sum, row) => sum + chargeSectionPaid(row.$2),
+    );
+    final total = rows.fold<double>(
+      0,
+      (sum, row) => sum + chargeSectionTotal(row.$2),
+    );
+    return [
+      pw.Table(
+        border: pw.TableBorder.all(
+          color: PdfColor.fromHex('#E2E8F0'),
+          width: 0.5,
+        ),
+        columnWidths: const {
+          0: pw.FlexColumnWidth(3),
+          1: pw.FlexColumnWidth(1.4),
+          2: pw.FlexColumnWidth(1.4),
+        },
+        children: [
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: PdfColor.fromHex('#F8FAFC')),
+            children: [
+              summaryCell('Category', bold: true),
+              summaryCell('Total', bold: true, end: true),
+              summaryCell('Paid', bold: true, end: true),
+            ],
+          ),
+          ...rows.map(
+            (row) => pw.TableRow(
+              children: [
+                summaryCell(row.$1),
+                summaryCell(
+                  chargeSectionTotal(row.$2).toFinancial(isMoney: true),
+                  end: true,
+                ),
+                summaryCell(
+                  chargeSectionPaid(row.$2).toFinancial(isMoney: true),
+                  end: true,
+                ),
+              ],
+            ),
+          ),
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: PdfColor.fromHex('#EEF2FF')),
+            children: [
+              summaryCell('Total', bold: true),
+              summaryCell(total.toFinancial(isMoney: true), bold: true, end: true),
+              summaryCell(
+                totalPaid.toFinancial(isMoney: true),
+                bold: true,
+                end: true,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ];
+  }
+
   doc.addPage(
     pw.MultiPage(
       pageFormat: format,
@@ -271,7 +388,9 @@ Future<List<int>> buildInpatientInvoicePdf({
                     ),
                     pw.SizedBox(height: 2),
                     pw.Text(
-                      'Detailed charges and payment summary',
+                      itemized
+                          ? 'Detailed charges and payment summary'
+                          : 'Category totals and amount paid',
                       style: pw.TextStyle(
                         fontSize: 9,
                         color: PdfColors.grey700,
@@ -344,26 +463,10 @@ Future<List<int>> buildInpatientInvoicePdf({
           ],
         ),
         pw.SizedBox(height: 14),
-        ...section(
-          chargeCategoryLabel(ChargeCategory.daily),
-          grouped[ChargeCategory.daily] ?? const [],
-        ),
-        ...section(
-          chargeCategoryLabel(ChargeCategory.pharmacy),
-          grouped[ChargeCategory.pharmacy] ?? const [],
-        ),
-        ...section(
-          chargeCategoryLabel(ChargeCategory.lab),
-          grouped[ChargeCategory.lab] ?? const [],
-        ),
-        ...section(
-          chargeCategoryLabel(ChargeCategory.supplies),
-          grouped[ChargeCategory.supplies] ?? const [],
-        ),
-        ...section(
-          chargeCategoryLabel(ChargeCategory.other),
-          grouped[ChargeCategory.other] ?? const [],
-        ),
+        if (itemized)
+          for (final row in categorySections) ...section(row.$1, row.$2)
+        else
+          ...summaryTable(),
       ],
     ),
   );

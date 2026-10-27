@@ -663,7 +663,7 @@ class _ActionButtons extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onChangeMethod,
             icon: const Icon(Icons.edit_note, size: 14),
-            label: const Text('Payment', style: TextStyle(fontSize: 12)),
+            label: const Text('Change method', style: TextStyle(fontSize: 12)),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),

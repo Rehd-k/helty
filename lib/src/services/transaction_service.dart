@@ -299,6 +299,28 @@ class TransactionService {
     return _fromJson(resp.data as Map<String, dynamic>);
   }
 
+  /// PATCH `/invoices/payments/:paymentId` — reclassifies cash, card, or transfer.
+  /// Does not change the amount. [bankAccountNumber] is the registered account
+  /// number, required for card and transfer.
+  Future<void> updatePaymentMethod({
+    required String paymentId,
+    required String source,
+    required String method,
+    String? reference,
+    String? bankAccountNumber,
+  }) async {
+    await _dio.patch(
+      '/invoices/payments/$paymentId',
+      data: {
+        'source': source,
+        'method': method,
+        'reference': ?reference,
+        if (bankAccountNumber != null && bankAccountNumber.isNotEmpty)
+          'bankAccountNumber': bankAccountNumber,
+      },
+    );
+  }
+
   // ── Delete ────────────────────────────────────────────────────────────────
 
   /// DELETE /transaction/:id — soft-deletes or cancels a transaction.
