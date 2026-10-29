@@ -33,6 +33,7 @@ class _PendingDeviceApprovalsScreenState
   bool _loadingMore = false;
   String? _error;
   String? _actionId;
+  String _status = 'APPROVED';
 
   static const _limit = 20;
 
@@ -72,7 +73,7 @@ class _PendingDeviceApprovalsScreenState
       final result = await ref
           .read(patientAccessServiceProvider)
           .listPatientDevices(
-            status: 'PENDING',
+            status: _status,
             page: page,
             limit: _limit,
             search: _searchCtrl.text,
@@ -137,15 +138,16 @@ class _PendingDeviceApprovalsScreenState
     }
   }
 
-  Future<void> _remove(PatientDeviceRow row) async {
+  Future<void> _revoke(PatientDeviceRow row) async {
+    final name = row.patient?.displayName ?? 'this patient';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove device?'),
+        title: const Text('Revoke this phone?'),
         content: Text(
-          'Remove "${row.deviceLabel}" for '
-          '${row.patient?.displayName ?? 'this patient'}? '
-          'They must log in again and wait for re-approval.',
+          'Revoke "${row.deviceLabel}" for $name? '
+          'They must request a new code and verify this phone again '
+          'before they can sign in.',
         ),
         actions: [
           TextButton(
@@ -154,7 +156,7 @@ class _PendingDeviceApprovalsScreenState
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Remove'),
+            child: const Text('Revoke'),
           ),
         ],
       ),
@@ -170,9 +172,11 @@ class _PendingDeviceApprovalsScreenState
         _total = (_total - 1).clamp(0, _total);
         _actionId = null;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Device removed.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone revoked. The patient must verify again.'),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _actionId = null);
@@ -210,7 +214,7 @@ class _PendingDeviceApprovalsScreenState
     final staff = ref.watch(currentStaffProvider);
     if (!canManagePatientAppAccess(staff)) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Device approvals')),
+        appBar: AppBar(title: const Text('Patient devices')),
         body: const Center(child: Text('Access denied for this account.')),
       );
     }
@@ -219,7 +223,7 @@ class _PendingDeviceApprovalsScreenState
     final hasMore = _items.length < _total;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Device approvals')),
+      appBar: AppBar(title: const Text('Patient devices')),
       body: Column(
         children: [
           Padding(
@@ -233,6 +237,20 @@ class _PendingDeviceApprovalsScreenState
                 border: OutlineInputBorder(),
               ),
               onChanged: _onSearchChanged,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'APPROVED', label: Text('Verified')),
+                ButtonSegment(value: 'PENDING', label: Text('Waiting')),
+              ],
+              selected: {_status},
+              onSelectionChanged: (next) {
+                setState(() => _status = next.first);
+                _load(reset: true);
+              },
             ),
           ),
           if (_error != null)
@@ -251,12 +269,15 @@ class _PendingDeviceApprovalsScreenState
                     child: _items.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
+                            children: [
                               EmptyStateWidget(
-                                icon: Icons.pending_actions_outlined,
-                                title: 'No pending devices',
-                                message:
-                                    'New patient app sign-ins awaiting approval will show here.',
+                                icon: Icons.phonelink_lock_outlined,
+                                title: _status == 'APPROVED'
+                                    ? 'No verified phones'
+                                    : 'No phones waiting',
+                                message: _status == 'APPROVED'
+                                    ? 'Verified patient phones appear here. Revoke one to make that phone request a new code.'
+                                    : 'Phones waiting for approval will show here.',
                               ),
                             ],
                           )
@@ -317,19 +338,20 @@ class _PendingDeviceApprovalsScreenState
                                       : Wrap(
                                           spacing: 4,
                                           children: [
-                                            IconButton(
-                                              tooltip: 'Approve',
-                                              icon: const Icon(
-                                                Icons.check_circle_outline,
+                                            if (row.isPending)
+                                              IconButton(
+                                                tooltip: 'Approve',
+                                                icon: const Icon(
+                                                  Icons.check_circle_outline,
+                                                ),
+                                                onPressed: () => _approve(row),
                                               ),
-                                              onPressed: () => _approve(row),
-                                            ),
                                             IconButton(
-                                              tooltip: 'Remove',
+                                              tooltip: 'Revoke',
                                               icon: const Icon(
-                                                Icons.delete_outline,
+                                                Icons.phonelink_erase_outlined,
                                               ),
-                                              onPressed: () => _remove(row),
+                                              onPressed: () => _revoke(row),
                                             ),
                                           ],
                                         ),

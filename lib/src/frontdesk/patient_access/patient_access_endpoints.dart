@@ -16,4 +16,6 @@ abstract final class PatientAccessEndpoints {
 
   static String child(String parentId, String childId) =>
       '/frontdesk/patients/$parentId/children/$childId';
+
+  static const patientLoginCodes = '/frontdesk/patient-login-codes';
 }

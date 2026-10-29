@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../notifications/local_notification_platform_service.dart';
 import '../models/emergency_request_model.dart';
 import '../services/emergency_request_service.dart';
+
+const _kAmbulanceSirenAsset = 'assets/ambulance-siren.wav';
 
 final emergencyRequestStatusFilterProvider =
     StateProvider<EmergencyRequestStatus?>((ref) => EmergencyRequestStatus.submitted);
@@ -25,10 +28,55 @@ final emergencyRequestDetailProvider = FutureProvider.autoDispose
     });
 
 /// Polls the ED emergency inbox every 15s and fires local notifications for
-/// newly seen SUBMITTED requests.
-final emergencyRequestPollProvider = Provider.autoDispose<void>((ref) {
+/// newly seen SUBMITTED requests. While any request remains SUBMITTED, plays
+/// the ambulance siren immediately and again every 5 minutes until the
+/// Submitted tab is empty.
+///
+/// Reading this provider returns a callback that forces an immediate
+/// re-check (useful after acknowledging / dispatching a request).
+final emergencyRequestPollProvider =
+    Provider.autoDispose<void Function()>((ref) {
   final seen = <String>{};
   var primed = false;
+  var alertingSubmitted = false;
+  var sirenAssetReady = false;
+  final sirenPlayer = AudioPlayer();
+  Timer? sirenTimer;
+
+  Future<void> playSiren() async {
+    try {
+      if (!sirenAssetReady) {
+        await sirenPlayer.setAsset(_kAmbulanceSirenAsset);
+        sirenAssetReady = true;
+      } else {
+        await sirenPlayer.seek(Duration.zero);
+      }
+      await sirenPlayer.play();
+    } catch (_) {
+      // Audio failures should not interrupt inbox polling.
+    }
+  }
+
+  void syncSubmittedSiren(bool hasSubmitted) {
+    if (hasSubmitted) {
+      if (!alertingSubmitted) {
+        alertingSubmitted = true;
+        unawaited(playSiren());
+        sirenTimer?.cancel();
+        sirenTimer = Timer.periodic(
+          const Duration(minutes: 5),
+          (_) => unawaited(playSiren()),
+        );
+      }
+      return;
+    }
+
+    if (!alertingSubmitted) return;
+    alertingSubmitted = false;
+    sirenTimer?.cancel();
+    sirenTimer = null;
+    unawaited(sirenPlayer.stop());
+  }
 
   Future<void> tick() async {
     try {
@@ -38,6 +86,7 @@ final emergencyRequestPollProvider = Provider.autoDispose<void>((ref) {
         limit: 50,
       );
       final ids = response.data.map((e) => e.id).toSet();
+      syncSubmittedSiren(ids.isNotEmpty);
       if (!primed) {
         seen.addAll(ids);
         primed = true;
@@ -79,9 +128,16 @@ final emergencyRequestPollProvider = Provider.autoDispose<void>((ref) {
     }
   }
 
-  tick();
+  void refresh() => unawaited(tick());
+
+  refresh();
   final timer = Timer.periodic(const Duration(seconds: 15), (_) => tick());
-  ref.onDispose(timer.cancel);
+  ref.onDispose(() {
+    timer.cancel();
+    sirenTimer?.cancel();
+    sirenPlayer.dispose();
+  });
+  return refresh;
 });
 
 const _seenKey = 'ed_emergency_request_seen_ids';

@@ -42,6 +42,11 @@ List<AutoRoute> registrationRoutes({
         page: PendingDeviceApprovalsRoute.page,
         guards: const [ProductModuleGuard()],
       ),
+    if (isHospital)
+      AutoRoute(
+        page: PatientLoginCodesRoute.page,
+        guards: const [ProductModuleGuard()],
+      ),
     AutoRoute(
       page: PatientDevicesRoute.page,
       guards: const [ProductModuleGuard()],

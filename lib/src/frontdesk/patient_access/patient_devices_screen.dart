@@ -106,10 +106,10 @@ class _PatientDevicesScreenState extends ConsumerState<PatientDevicesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove device?'),
+        title: const Text('Revoke this phone?'),
         content: Text(
-          'Remove "${row.deviceLabel}"? The patient must log in again '
-          'and wait for re-approval.',
+          'Revoke "${row.deviceLabel}"? The patient must request a new code '
+          'and verify this phone again before they can sign in.',
         ),
         actions: [
           TextButton(
@@ -118,7 +118,7 @@ class _PatientDevicesScreenState extends ConsumerState<PatientDevicesScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Remove'),
+            child: const Text('Revoke'),
           ),
         ],
       ),
@@ -132,9 +132,11 @@ class _PatientDevicesScreenState extends ConsumerState<PatientDevicesScreen> {
       await _load();
       if (!mounted) return;
       setState(() => _actionId = null);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Device removed.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone revoked. The patient must verify again.'),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _actionId = null);
@@ -261,8 +263,10 @@ class _PatientDevicesScreenState extends ConsumerState<PatientDevicesScreen> {
                                           onPressed: () => _approve(row),
                                         ),
                                       IconButton(
-                                        tooltip: 'Remove',
-                                        icon: const Icon(Icons.delete_outline),
+                                        tooltip: 'Revoke',
+                                        icon: const Icon(
+                                          Icons.phonelink_erase_outlined,
+                                        ),
                                         onPressed: () => _remove(row),
                                       ),
                                     ],

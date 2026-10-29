@@ -50,6 +50,9 @@ class _EdEmergencyRequestDetailScreenState
           );
       ref.invalidate(emergencyRequestDetailProvider(widget.id));
       ref.invalidate(emergencyRequestInboxProvider);
+      // Re-check submitted inbox so the ambulance siren stops promptly
+      // once nothing remains in Submitted.
+      ref.read(emergencyRequestPollProvider)();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Marked as ${next.label}')),
@@ -68,6 +71,8 @@ class _EdEmergencyRequestDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Keep submitted polling / siren alive while viewing a request.
+    ref.watch(emergencyRequestPollProvider);
     final detailAsync = ref.watch(emergencyRequestDetailProvider(widget.id));
 
     return Scaffold(

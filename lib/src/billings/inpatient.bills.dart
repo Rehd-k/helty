@@ -461,9 +461,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  Future<_InvoicePdfLayout?> _chooseInvoicePdfLayout({
-    required String title,
-  }) {
+  Future<_InvoicePdfLayout?> _chooseInvoicePdfLayout({required String title}) {
     final width = MediaQuery.sizeOf(context).width;
     final maxWidth = width - 32 < 560 ? width - 32 : 560.0;
     return showDialog<_InvoicePdfLayout>(
@@ -521,9 +519,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       iconSize: 16,
                     ),
                     title: const Text('Summary'),
-                    subtitle: const Text(
-                      'Category totals and total paid',
-                    ),
+                    subtitle: const Text('Category totals and total paid'),
                     onTap: () =>
                         Navigator.of(ctx).pop(_InvoicePdfLayout.summary),
                   ),
@@ -1050,10 +1046,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     }
 
     _leaveCheckOpen = false;
-    _openPayBillForItems(
-      detail.invoiceItems,
-      initialPaymentMethod: 'wallet',
-    );
+    _openPayBillForItems(detail.invoiceItems, initialPaymentMethod: 'wallet');
     return false;
   }
 
@@ -1831,85 +1824,84 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         _onBackPressed();
       },
       child: Scaffold(
-      backgroundColor: colorScheme.surfaceContainerLow,
-      floatingActionButton: _billFab(snap),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: Stack(
-        children: [
-          ResponsiveBody(
-        center: false,
-        builder: (context, bp) {
-          final width = bp.maxWidth > 0
-              ? bp.maxWidth
-              : MediaQuery.sizeOf(context).width;
-          final showRail = width >= AppBreakpoints.desktopMin;
-          final useCards = width < _billCardBreakpoint;
-          final main = Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _pageHeader(
-                subtitle: snap.patientName.isEmpty
-                    ? 'Invoice ${snap.invoiceDisplayId}'
-                    : '${snap.patientName} · ${snap.invoiceDisplayId}',
-                compact: useCards,
-                status: _balanceChip(snap),
-                trailing: _headerActions(snap, compact: useCards),
-              ),
-              const SizedBox(height: 10),
-              _categoryStrip(snap),
-              const SizedBox(height: 10),
-              _filterRow(snap, compact: useCards, showRail: showRail),
-              const SizedBox(height: 10),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 320),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  layoutBuilder: (current, previous) => Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ...previous,
-                      if (current != null) current,
-                    ],
-                  ),
-                  transitionBuilder: (child, animation) {
-                    final curved = CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                    );
-                    return FadeTransition(
-                      opacity: curved,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0.035, 0),
-                          end: Offset.zero,
-                        ).animate(curved),
-                        child: child,
+        backgroundColor: colorScheme.surfaceContainerLow,
+        floatingActionButton: _billFab(snap),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        body: Stack(
+          children: [
+            ResponsiveBody(
+              center: false,
+              builder: (context, bp) {
+                final width = bp.maxWidth > 0
+                    ? bp.maxWidth
+                    : MediaQuery.sizeOf(context).width;
+                final showRail = width >= AppBreakpoints.desktopMin;
+                final useCards = width < _billCardBreakpoint;
+                final main = Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _pageHeader(
+                      subtitle: snap.patientName.isEmpty
+                          ? 'Invoice ${snap.invoiceDisplayId}'
+                          : '${snap.patientName} · ${snap.invoiceDisplayId}',
+                      compact: useCards,
+                      status: _balanceChip(snap),
+                      trailing: _headerActions(snap, compact: useCards),
+                    ),
+                    const SizedBox(height: 10),
+                    _categoryStrip(snap),
+                    const SizedBox(height: 10),
+                    _filterRow(snap, compact: useCards, showRail: showRail),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 320),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        layoutBuilder: (current, previous) => Stack(
+                          fit: StackFit.expand,
+                          children: [...previous, ?current],
+                        ),
+                        transitionBuilder: (child, animation) {
+                          final curved = CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          );
+                          return FadeTransition(
+                            opacity: curved,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.035, 0),
+                                end: Offset.zero,
+                              ).animate(curved),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: KeyedSubtree(
+                          key: ValueKey(
+                            '${_tabController.index}|$_categoryFilter',
+                          ),
+                          child: _activePane(snap, useCards: useCards),
+                        ),
                       ),
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey('${_tabController.index}|$_categoryFilter'),
-                    child: _activePane(snap, useCards: useCards),
-                  ),
-                ),
-              ),
-            ],
-          );
-          if (!showRail) return main;
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(flex: 9, child: main),
-              const SizedBox(width: 12),
-              Expanded(flex: 3, child: _rail(snap)),
-            ],
-          );
-        },
-      ),
-          Positioned.fill(child: _fabScrim()),
-        ],
-      ),
+                    ),
+                  ],
+                );
+                if (!showRail) return main;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 9, child: main),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 3, child: _rail(snap)),
+                  ],
+                );
+              },
+            ),
+            Positioned.fill(child: _fabScrim()),
+          ],
+        ),
       ),
     );
   }
@@ -2139,9 +2131,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     for (final coverage in invoice.coverages) {
       if (coverage.kind.trim().toUpperCase() != wanted) continue;
       final status = coverage.status.trim().toUpperCase();
-      if (status == 'REVERSED' ||
-          status == 'CANCELLED' ||
-          status == 'VOIDED') {
+      if (status == 'REVERSED' || status == 'CANCELLED' || status == 'VOIDED') {
         continue;
       }
       sum += coverage.computedAmount;
@@ -2193,9 +2183,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           color: selected ? group.color.withValues(alpha: 0.10) : cs.surface,
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(
-            color: selected
-                ? group.color
-                : cs.outline.withValues(alpha: 0.22),
+            color: selected ? group.color : cs.outline.withValues(alpha: 0.22),
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2208,46 +2196,46 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             child: Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Row(
-          children: [
-            HeltySolidIcon(
-              icon: group.icon,
-              color: group.color,
-              size: 28,
-              iconSize: 15,
-              radius: 8,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  HeltyEllipsisText(
-                    text: group.label,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: selected ? group.color : cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  HeltySolidIcon(
+                    icon: group.icon,
+                    color: group.color,
+                    size: 28,
+                    iconSize: 15,
+                    radius: 8,
                   ),
-                  HeltyEllipsisText(
-                    text: group.total.toFinancial(isMoney: true),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurface,
-                      height: 1.15,
-                    ),
-                  ),
-                  HeltyEllipsisText(
-                    text:
-                        '${group.count} lines · paid ${group.paid.toFinancial(isMoney: true)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontSize: 10,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HeltyEllipsisText(
+                          text: group.label,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: selected ? group.color : cs.onSurfaceVariant,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        HeltyEllipsisText(
+                          text: group.total.toFinancial(isMoney: true),
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: cs.onSurface,
+                            height: 1.15,
+                          ),
+                        ),
+                        HeltyEllipsisText(
+                          text:
+                              '${group.count} lines · paid ${group.paid.toFinancial(isMoney: true)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-            ),
-          ],
               ),
             ),
           ),
@@ -2370,23 +2358,23 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: selected ? Colors.white : color),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: selected ? Colors.white : cs.onSurface,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: selected ? Colors.white : color),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: selected ? Colors.white : cs.onSurface,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
             ),
           ),
         ),
@@ -2610,7 +2598,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           child: GestureDetector(
             onTap: _fabController.reverse,
             child: ColoredBox(
-              color: Colors.black.withValues(alpha: 0.28 * _fabController.value),
+              color: Colors.black.withValues(
+                alpha: 0.28 * _fabController.value,
+              ),
             ),
           ),
         );
@@ -2699,9 +2689,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                   action.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -2933,7 +2923,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       const SizedBox(height: 8),
       Text(
         'Insurance and discount',
-        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
       ),
       if (_coverageBusy) ...[
         const SizedBox(height: 8),
@@ -3261,7 +3253,13 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         count: charges.length,
       ),
     ];
-    for (final key in ['daily', 'pharmacy', 'diagnostics', 'supplies', 'other']) {
+    for (final key in [
+      'daily',
+      'pharmacy',
+      'diagnostics',
+      'supplies',
+      'other',
+    ]) {
       final items = [
         for (final item in charges)
           if (_groupKey(item.category) == key) item,
@@ -3408,10 +3406,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        _groupBanner(key, rows),
-        child,
-      ],
+      children: [_groupBanner(key, rows), child],
     );
   }
 
@@ -4383,7 +4378,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     if (useCards) {
       return Column(
         children: [
-          if (ribbon != null) ribbon,
+          ?ribbon,
           Expanded(child: body),
           pager,
         ],
@@ -4394,7 +4389,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          if (ribbon != null) ribbon,
+          ?ribbon,
           Expanded(
             child: LayoutBuilder(
               builder: (context, inner) {

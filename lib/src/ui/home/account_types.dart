@@ -69,9 +69,15 @@ List<MenuItem> get frontDesk => [
     ),
     MenuItem(
       color: DepartmentColors.frontDesk,
-      label: 'Device approvals',
+      label: 'Patient devices',
       icon: Icons.phonelink_lock_outlined,
       route: PendingDeviceApprovalsRoute(),
+    ),
+    MenuItem(
+      color: DepartmentColors.frontDesk,
+      label: 'App login codes',
+      icon: Icons.pin_outlined,
+      route: PatientLoginCodesRoute(),
     ),
     MenuItem(
       color: DepartmentColors.frontDesk,

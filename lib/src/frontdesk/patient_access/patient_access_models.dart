@@ -238,3 +238,58 @@ List<dynamic> patientAccessAsList(dynamic data) {
   final raw = unwrapPatientAccessPayload(data);
   return _extractList(raw);
 }
+
+class PatientLoginCodeRow {
+  const PatientLoginCodeRow({
+    required this.id,
+    required this.purpose,
+    required this.hospitalPatientId,
+    required this.patientName,
+    required this.phoneNumber,
+    required this.code,
+    required this.sentToPhone,
+    required this.requestedAt,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final String purpose;
+  final String hospitalPatientId;
+  final String patientName;
+  final String? phoneNumber;
+  final String? code;
+  final bool sentToPhone;
+  final DateTime? requestedAt;
+  final DateTime? expiresAt;
+
+  String get purposeLabel => switch (purpose) {
+    'PASSWORD_RESET' => 'Password reset',
+    _ => 'Activation',
+  };
+
+  factory PatientLoginCodeRow.fromJson(Map<String, dynamic> json) {
+    return PatientLoginCodeRow(
+      id: json['id']?.toString() ?? '',
+      purpose: json['purpose']?.toString() ?? 'ACTIVATION',
+      hospitalPatientId: json['hospitalPatientId']?.toString() ?? '',
+      patientName: json['patientName']?.toString() ?? '',
+      phoneNumber: json['phoneNumber']?.toString(),
+      code: json['code']?.toString(),
+      sentToPhone: json['sentToPhone'] == true,
+      requestedAt: DateTime.tryParse(json['requestedAt']?.toString() ?? ''),
+      expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? ''),
+    );
+  }
+}
+
+class PatientLoginCodePage {
+  const PatientLoginCodePage({
+    required this.delivery,
+    required this.items,
+  });
+
+  final String delivery;
+  final List<PatientLoginCodeRow> items;
+
+  bool get showsCodes => delivery != 'phone';
+}

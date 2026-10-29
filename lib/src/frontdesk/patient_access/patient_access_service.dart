@@ -111,4 +111,26 @@ class PatientAccessService {
       PatientAccessEndpoints.child(parentId, childId),
     );
   }
+
+  /// `GET /frontdesk/patient-login-codes`
+  Future<PatientLoginCodePage> listLoginCodes() async {
+    final response = await _dio.get<dynamic>(
+      PatientAccessEndpoints.patientLoginCodes,
+    );
+    final map = patientAccessAsMap(response.data);
+    final rawItems = map['data'] is List
+        ? map['data'] as List
+        : patientAccessAsList(response.data);
+    return PatientLoginCodePage(
+      delivery: map['delivery']?.toString() ?? 'staff',
+      items: rawItems
+          .whereType<Map>()
+          .map(
+            (row) => PatientLoginCodeRow.fromJson(
+              Map<String, dynamic>.from(row),
+            ),
+          )
+          .toList(),
+    );
+  }
 }

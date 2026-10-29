@@ -12,6 +12,7 @@ const Map<String, AppModule> _routeModules = {
   // Registration / front desk
   'FrontDeskDashboardRoute': AppModule.registration,
   'PendingDeviceApprovalsRoute': AppModule.registration,
+  'PatientLoginCodesRoute': AppModule.registration,
   'PatientDevicesRoute': AppModule.registration,
   'FamilyLinksRoute': AppModule.registration,
   'LinkOneTimePatientRoute': AppModule.registration,
