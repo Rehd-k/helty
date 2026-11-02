@@ -1,5 +1,5 @@
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:helty/src/app/org_config.dart';
+import 'package:helty/src/printing/pdf/org_pdf_logo.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
@@ -24,8 +24,7 @@ Future<List<int>> buildInvestigationsReportPdf({
   int? totalCount,
 }) async {
   final org = OrgConfig.instance;
-  final logoBytes = await rootBundle.load(org.logoAsset);
-  final logo = pw.MemoryImage(logoBytes.buffer.asUint8List());
+  final logo = await loadOrgPdfLogo();
   final generatedAt = AppTimezone.now();
   final generatedStr = DateFormatter.shortDate(generatedAt);
 

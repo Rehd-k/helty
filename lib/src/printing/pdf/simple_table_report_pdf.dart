@@ -1,5 +1,4 @@
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:helty/src/app/org_config.dart';
+import 'package:helty/src/printing/pdf/org_pdf_logo.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -11,8 +10,7 @@ Future<List<int>> buildSimpleTableReportPdf({
   required List<String> headers,
   required List<List<String>> rows,
 }) async {
-  final logoBytes = await rootBundle.load(OrgConfig.instance.logoAsset);
-  final logo = pw.MemoryImage(logoBytes.buffer.asUint8List());
+  final logo = await loadOrgPdfLogo();
   final doc = pw.Document();
 
   final cols = headers.isEmpty ? ['Value'] : headers;

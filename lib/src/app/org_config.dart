@@ -6,8 +6,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 /// Multi-value fields (`ORG_ADDRESSES`, `ORG_PHONES`, `ORG_EMAILS`,
 /// `ORG_TAGLINES`) are split on `;`. Use [contactLine] to join them for
 /// display (e.g. PDF headers). Logo path is `ORG_LOGO` (Flutter asset).
+/// Missing keys stay empty. There is no built-in hospital identity.
 class OrgConfig {
-  OrgConfig._({
+  const OrgConfig._({
     required this.name,
     required this.addresses,
     required this.phones,
@@ -21,7 +22,7 @@ class OrgConfig {
 
   static OrgConfig? _instance;
 
-  /// Loaded config. Falls back to IMSH defaults if [load] was never called.
+  /// Loaded config. Empty until [load], and empty for any key `.env` omits.
   static OrgConfig get instance => _instance ?? OrgConfig.defaults();
 
   final String name;
@@ -33,11 +34,10 @@ class OrgConfig {
   final List<String> taglines;
 
   /// True only when `.env` sets a non-empty `ORG_TAGLINES`.
-  /// Built-in default taglines do not count.
   final bool taglinesFromEnv;
 
   /// Flutter asset path for the org logo on PDFs, receipts, and watermark.
-  /// Set via `ORG_LOGO` in `.env` (e.g. `assets/imsh.png`).
+  /// Set via `ORG_LOGO` in `.env`. Empty when unset.
   /// The Helty app chrome (login / sidebar) always uses `assets/logo.png`.
   final String logoAsset;
 
@@ -50,28 +50,20 @@ class OrgConfig {
   String get emailsLine => contactLine(emails);
   String get taglinesLine => contactLine(taglines);
 
-  static OrgConfig defaults() => OrgConfig._(
-        name: 'Ibom Multispecialty Hospital',
-        addresses: const ['Ikot Ekpene - Uyo Rd, Uyo, Akwa Ibom'],
-        phones: const ['0802 181 4674'],
-        emails: const ['info@imsh.ng'],
-        website: 'https://imsh.ng',
+  static OrgConfig defaults() => const OrgConfig._(
+        name: '',
+        addresses: [],
+        phones: [],
+        emails: [],
+        website: '',
         apiBaseUrl: '',
-        taglines: const [
-          'Digital Mammography',
-          'Digital X-ray',
-          'Special X-ray Investigations',
-          'Ultrasound Scan',
-          'Automated Laboratory',
-          'Comprehensive Health Check',
-          'Pap Smear',
-          'ECG',
-        ],
+        taglines: [],
         taglinesFromEnv: false,
-        logoAsset: 'assets/imsh.png',
+        logoAsset: '',
       );
 
-  /// Loads `.env` when present as an asset, otherwise `.env.example`.
+  /// Loads `.env` when present as an asset, otherwise the blank `.env.example`.
+  /// Missing keys stay empty.
   static Future<void> load() async {
     try {
       await dotenv.load(fileName: '.env');

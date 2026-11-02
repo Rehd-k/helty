@@ -594,7 +594,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 decoration: _fieldDecoration(
                   colors,
                   label: 'Email or phone',
-                  hint: 'you@imsh.org or 080…',
+                  hint: 'Email or phone',
                   prefixIcon: const HeltySolidIcon(
                     icon: Icons.person_outline,
                     color: _kAccentBlue,

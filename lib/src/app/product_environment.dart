@@ -11,8 +11,8 @@ export 'api_candidates.dart';
 /// Prefer dedicated entry points ([main_pharmacy.dart], [main_diagnostics.dart],
 /// [main_lab_pharmacy.dart])
 /// which call [bind] so the product is selected without relying only on
-/// `--dart-define=APP_PRODUCT=...`. Always pass `--dart-define=API_BASE_URL=...`
-/// for non-hospital release builds.
+/// `--dart-define=APP_PRODUCT=...`. Release builds require
+/// `--dart-define=API_BASE_URL=...` or `API_BASE_URL` in `.env`.
 class ProductEnvironment {
   ProductEnvironment._();
 
@@ -22,7 +22,7 @@ class ProductEnvironment {
   );
 
   /// Explicit production API origin from `--dart-define=API_BASE_URL=...`.
-  /// Empty means fall through to `.env` then [kApiCandidateBaseUrls].
+  /// Empty means fall through to `.env`, then localhost in [kApiCandidateBaseUrls].
   static const String apiBaseUrlFromDefine = String.fromEnvironment(
     'API_BASE_URL',
   );
@@ -63,7 +63,7 @@ class ProductEnvironment {
   /// Candidate API origins for [ClockSyncGate] probing.
   ///
   /// Precedence: [apiBaseUrlOverride] → `--dart-define=API_BASE_URL` →
-  /// `.env` `API_BASE_URL` → [kApiCandidateBaseUrls].
+  /// `.env` `API_BASE_URL` → localhost in [kApiCandidateBaseUrls].
   ///
   /// Explicit values may be a single URL or a `;`-separated list; each entry
   /// is probed and the fastest successful `/server-time` wins.
@@ -88,7 +88,7 @@ class ProductEnvironment {
     );
   }
 
-  /// Non-hospital release builds must pin an HTTPS (or explicit) API URL.
+  /// Release builds must pin an API URL. An empty URL must not probe another site.
   static void validateReleaseConfig({
     bool? isRelease,
     String? apiBaseUrlOverride,
@@ -97,11 +97,9 @@ class ProductEnvironment {
     final release = isRelease ?? kReleaseMode;
     if (!release) return;
 
-    final product = productOverride ?? currentProduct;
-    if (product == AppProduct.hospital) return;
-
     final url = (apiBaseUrlOverride ?? resolvedApiBaseUrl).trim();
     if (url.isEmpty) {
+      final product = productOverride ?? currentProduct;
       throw StateError(
         'API_BASE_URL is required for ${product.name} release builds. '
         'Pass --dart-define=API_BASE_URL=https://api.customer.example '

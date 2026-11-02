@@ -1,5 +1,4 @@
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:helty/src/app/org_config.dart';
+import 'package:helty/src/printing/pdf/org_pdf_logo.dart';
 import 'package:helty/src/printing/pdf/report_template_preference.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/ui/radiology_ui_helpers.dart';
@@ -11,8 +10,7 @@ Future<List<int>> buildRadiologyClinicalNotesPdf(
   RadiologyOrder order, {
   PdfPageFormat format = PdfPageFormat.a4,
 }) async {
-  final logoImageBytes = await rootBundle.load(OrgConfig.instance.logoAsset);
-  final logoImage = pw.MemoryImage(logoImageBytes.buffer.asUint8List());
+  final logoImage = await loadOrgPdfLogo();
   final theme = await resolveSelectedReportPdfTheme();
 
   final generatedStr = DateTime.now().toIso8601String().split('T').first;

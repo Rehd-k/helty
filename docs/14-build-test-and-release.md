@@ -29,7 +29,7 @@ flutter run -d windows -t lib/main_diagnostics.dart --dart-define=API_BASE_URL=h
 flutter run -d windows -t lib/main_lab_pharmacy.dart --dart-define=API_BASE_URL=https://api.example
 ```
 
-Release builds of the three smaller products throw at startup if `API_BASE_URL` is empty. The hospital product falls through to `kApiCandidateBaseUrls`.
+Release builds of every product throw at startup if `API_BASE_URL` is empty. Debug builds with no URL probe `http://localhost:3000` only. Set the hospital’s API list in `.env`.
 
 Web:
 
@@ -95,11 +95,11 @@ The `msix_config` block in `pubspec.yaml` sets:
 | Output | `helty` |
 | Capabilities | internet, private network, documents, pictures, removable storage |
 | Update check | Every 8 hours, background task on, activation not blocked, no startup prompt |
-| App Installer | `make_appinstaller: true` and `appinstaller_url` pointing at the desktop update feed |
+| App Installer | `make_appinstaller: true`. `appinstaller_url` in the tree is a placeholder |
 
 Build the package with the `msix` tool after a Windows release build (see the `msix` package docs for the current command). The in-app layer is `HeltyDesktopUpdateLayer`. It must keep letting the app open when an update cannot be applied.
 
-Changing `appinstaller_url` changes where every installed client looks for updates. Treat that URL as environment configuration.
+Before packaging, copy `APPINSTALLER_URL` from the local `.env` into `msix_config.appinstaller_url`. msix does not read dotenv. That URL is where every installed client looks for updates, so it is per hospital.
 
 ## Dependencies worth knowing
 
@@ -145,7 +145,7 @@ A layout change should be checked at 360 px, 768 px, and 1280 px wide so `Respon
 - Gate a department with `AppModule` and `ProductModuleAccess`, and gate a button with a permission helper that has a test.
 - Match the walk-in queue look for new clinical pages.
 - Leave metrics blank (`—`) when the API omits them.
-- Keep `.env` out of commits when it contains a deployment-specific URL or anything private. `.env.example` is the template.
+- `.env` is gitignored. Copy `.env.example` and fill in that hospital’s `ORG_*`, `API_BASE_URL`, and `APPINSTALLER_URL`. Do not commit it.
 
 ## Where to look when something breaks
 

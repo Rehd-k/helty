@@ -1,5 +1,4 @@
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:helty/src/app/org_config.dart';
+import 'package:helty/src/printing/pdf/org_pdf_logo.dart';
 import 'package:helty/src/billings/inpatient_charge_models.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:pdf/pdf.dart';
@@ -27,8 +26,7 @@ Future<List<int>> buildInpatientInvoicePdf({
   required double walletBalance,
   required bool itemized,
 }) async {
-  final logoBytes = await rootBundle.load(OrgConfig.instance.logoAsset);
-  final logo = pw.MemoryImage(logoBytes.buffer.asUint8List());
+  final logo = await loadOrgPdfLogo();
 
   final doc = pw.Document();
   final generatedAt = DateTime.now();

@@ -10,7 +10,7 @@ The repository root is a standard Flutter project plus hospital-specific source 
 | `test/` | Widget and unit tests (about 40 files) |
 | `assets/` | Logos and other bundled files |
 | `docs/` | This documentation |
-| `.env` / `.env.example` | Organization name, contacts, logo path, and API origins. `.env` is local and should stay out of commits that share secrets |
+| `.env.example` | Blank template for organization name, contacts, logo path, and API origins. Copy it to `.env`, which is gitignored |
 | `pubspec.yaml` | Package name `helty`, version `2.0.20`, dependencies |
 | `analysis_options.yaml` | `flutter_lints`, with platform and `build/` folders excluded from the analyzer |
 | `Dockerfile` | Builds the hospital web app and serves it with nginx |

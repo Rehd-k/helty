@@ -1,5 +1,5 @@
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:helty/src/app/org_config.dart';
+import 'package:helty/src/printing/pdf/org_pdf_logo.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
@@ -77,10 +77,7 @@ class _LabReportFacts {
   }
 }
 
-Future<pw.ImageProvider> _loadLabPdfLogo() async {
-  final logoImageBytes = await rootBundle.load(OrgConfig.instance.logoAsset);
-  return pw.MemoryImage(logoImageBytes.buffer.asUint8List());
-}
+Future<pw.ImageProvider> _loadLabPdfLogo() => loadOrgPdfLogo();
 
 String _labOrderShortId(String id) => id.length > 8 ? id.substring(0, 8) : id;
 

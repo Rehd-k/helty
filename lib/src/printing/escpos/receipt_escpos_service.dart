@@ -309,6 +309,7 @@ class ReceiptEscposService {
   }
 
   static Future<img.Image?> _loadLogoRaster(String assetPath) async {
+    if (assetPath.trim().isEmpty) return null;
     try {
       final ByteData data = await rootBundle.load(assetPath);
       final Uint8List pngBytes = data.buffer.asUint8List(

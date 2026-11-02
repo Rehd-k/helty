@@ -102,7 +102,7 @@ void main() {
   });
 
   group('apiCandidateBaseUrls', () {
-    test('falls back to hospital/dev candidates when unset', () {
+    test('falls back to localhost when unset', () {
       expect(
         ProductEnvironment.apiCandidateBaseUrls(apiBaseUrlOverride: ''),
         kApiCandidateBaseUrls,
@@ -122,12 +122,12 @@ void main() {
       expect(
         ProductEnvironment.apiCandidateBaseUrls(
           apiBaseUrlOverride:
-              'http://localhost:3000/; http://192.168.2.121:3000;http://api.imsh.ng/',
+              'http://localhost:3000/; http://api.a.example;http://api.b.example/',
         ),
         [
           'http://localhost:3000',
-          'http://192.168.2.121:3000',
-          'http://api.imsh.ng',
+          'http://api.a.example',
+          'http://api.b.example',
         ],
       );
     });
@@ -143,12 +143,23 @@ void main() {
   });
 
   group('validateReleaseConfig', () {
-    test('hospital release does not require API_BASE_URL', () {
+    test('hospital release requires API_BASE_URL', () {
       expect(
         () => ProductEnvironment.validateReleaseConfig(
           isRelease: true,
           productOverride: AppProduct.hospital,
           apiBaseUrlOverride: '',
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('hospital release accepts API_BASE_URL', () {
+      expect(
+        () => ProductEnvironment.validateReleaseConfig(
+          isRelease: true,
+          productOverride: AppProduct.hospital,
+          apiBaseUrlOverride: 'https://api.hospital.example',
         ),
         returnsNormally,
       );

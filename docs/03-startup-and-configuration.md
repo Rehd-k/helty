@@ -23,7 +23,7 @@ Passing `product` calls `ProductEnvironment.bind`, which overrides the compile-t
 1. `WidgetsFlutterBinding.ensureInitialized()`.
 2. `OrgConfig.load()` reads branding and the API URL from dotenv.
 3. If a product was passed, `ProductEnvironment.bind(product)`.
-4. `ProductEnvironment.validateReleaseConfig()`. In release mode, pharmacy, diagnostics, and lab-pharmacy builds throw if `API_BASE_URL` is empty. The hospital product is allowed to fall through to the built-in candidate list.
+4. `ProductEnvironment.validateReleaseConfig()`. In release mode every product throws if `API_BASE_URL` is empty. Debug builds may fall through to localhost.
 5. `AppTimezone.initialize()` in `lib/src/helper/app_timezone.dart`. The wall clock used by the app is `Africa/Lagos`.
 6. `SharedPreferences` supplies the saved theme and the saved PDF report template. If preferences cannot be read (this happens on multi-user Windows when a previous elevated launch locked the file), startup continues with the system theme and the classic navy report template.
 7. `runApp` with a Riverpod `ProviderScope`. The scope overrides `themeModeProvider` and `reportTemplateProvider` with those initial values.
@@ -63,20 +63,13 @@ Its `build` method watches theme mode and app lifecycle, then returns `MaterialA
 1. An explicit override passed into `apiCandidateBaseUrls` (used by tests and by the gate).
 2. `--dart-define=API_BASE_URL=...`
 3. `API_BASE_URL` from `.env` via `OrgConfig`
-4. `kApiCandidateBaseUrls` in `lib/src/app/api_candidates.dart`
+4. `kApiCandidateBaseUrls` in `lib/src/app/api_candidates.dart` (`http://localhost:3000` only)
 
-A value may be one URL or several URLs separated by `;`. Each entry is probed. Trailing slashes are stripped.
-
-The built-in candidate list, used when no URL is configured, is:
-
-- `http://localhost:3000`
-- `http://192.168.2.121:3000`
-- `http://192.168.2.120:3000`
-- `http://api.imsh.ng`
+A value may be one URL or several URLs separated by `;`. Each entry is probed. Trailing slashes are stripped. Facility API hosts belong in `.env` or `--dart-define`, not in the built-in list.
 
 ## `OrgConfig`
 
-`lib/src/app/org_config.dart` is a singleton. `load()` tries `.env`, then `.env.example`, then `defaults()` (Ibom Multispecialty Hospital).
+`lib/src/app/org_config.dart` is a singleton. `load()` tries `.env`, then `.env.example`. Missing keys stay empty. There is no built-in hospital name, address, or logo.
 
 | Key | Field | Meaning |
 |---|---|---|
@@ -103,7 +96,7 @@ The login screen and sidebar keep `assets/logo.png` (the Helty mark). `ORG_LOGO`
 | `enabledModules` | The `Set<AppModule>` |
 | `isModuleEnabled` | One module check |
 | `resolvedApiBaseUrl` | dart-define, then dotenv |
-| `validateReleaseConfig` | Release guard for non-hospital products |
+| `validateReleaseConfig` | Release guard: every product needs `API_BASE_URL` |
 | `debugResetBind` | Test-only |
 
 `parseAppProduct` accepts `pharmacy`, `diagnostics` or `diagnostic`, `lab_pharmacy` / `lab-pharmacy` / `labpharmacy`. Any other string, including empty, is hospital.
@@ -139,4 +132,4 @@ You can also set `APP_PRODUCT` the same way. Dedicated `main_*.dart` files are t
 | Which API to call | `API_BASE_URL` dart-define or `.env` |
 | Letterhead and watermark | `ORG_*` keys |
 | Theme and PDF template | User’s SharedPreferences, seeded at startup |
-| Installer update feed | `appinstaller_url` inside `msix_config` in `pubspec.yaml` |
+| Installer update feed | `APPINSTALLER_URL` in `.env` (comment only). Copy it into `appinstaller_url` inside `msix_config` in `pubspec.yaml` before packaging. The shared tree uses a placeholder host |
