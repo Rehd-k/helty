@@ -11,6 +11,8 @@ import 'package:qr/qr.dart';
 
 import '../../core/platform/helty_platform.dart';
 import '../../helper/date.formatter.dart';
+import '../../models/bank_model.dart';
+import '../../models/invoice.dart';
 import 'escpos_network.dart';
 import 'windows_default_raw_printer.dart';
 
@@ -52,6 +54,9 @@ enum ReceiptPrintSink {
 /// Builds receipt bytes and sends to [ReceiptPrintSink].
 class ReceiptEscposService {
   ReceiptEscposService._();
+
+  /// Payload flag that prints an unpaid invoice instead of a payment receipt.
+  static const String unpaidInvoiceDocumentKind = 'unpaidInvoice';
 
   static final NumberFormat _naira = NumberFormat.currency(
     locale: 'en_NG',
@@ -282,6 +287,50 @@ class ReceiptEscposService {
     };
   }
 
+  /// Thermal invoice for a bill that has not been paid in full.
+  static Map<String, dynamic> fromUnpaidInvoice({
+    required Invoice invoice,
+    required List<BankModel> banks,
+  }) {
+    final displayId = invoice.invoiceDisplayId?.trim() ?? '';
+    final invoiceId = displayId.isNotEmpty ? displayId : invoice.id;
+    var preparedBy = _nameFromPersonMap(invoice.staff);
+    if (preparedBy.isEmpty && invoice.createdBy != null) {
+      preparedBy = _nameFromPersonMap(invoice.createdBy!);
+    }
+
+    final itemSnapshots = invoice.invoiceItems.map<Map<String, dynamic>>((
+      item,
+    ) {
+      final description = item.description?.trim() ?? '';
+      return {
+        'description': description.isNotEmpty ? description : item.name,
+        'quantity': item.qty ?? 1,
+        'total': item.displayLineTotal.toString(),
+      };
+    }).toList();
+
+    return {
+      'documentKind': unpaidInvoiceDocumentKind,
+      'transaction': {
+        'transactionID': invoiceId,
+        'totalAmount': invoice.totalAmount,
+        'amountPaid': invoice.amountPaid,
+        'createdAt': invoice.createdAt.toIso8601String(),
+      },
+      'patient': {
+        'patientName': invoice.patient.displayName,
+        'patientId': invoice.patient.patientId,
+      },
+      'staff': {'firstName': preparedBy, 'lastName': ''},
+      'itemSnapshots': itemSnapshots,
+      'banks': [
+        for (final bank in banks)
+          {'name': bank.name, 'accountNumber': bank.accountNumber},
+      ],
+    };
+  }
+
   static String _barcodeDataFromTxnId(String? txnId) {
     var digits = (txnId ?? '').replaceAll(RegExp(r'\D'), '');
     if (digits.isEmpty) digits = '12345';
@@ -365,6 +414,182 @@ class ReceiptEscposService {
     }
   }
 
+  static num _asNum(dynamic value) {
+    if (value is num) return value;
+    return num.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  /// Unpaid invoice body: no barcode, no QR, every bank account listed.
+  static List<int> _unpaidInvoiceBody({
+    required Generator generator,
+    required Map<String, dynamic> transaction,
+    required Map<String, dynamic> patient,
+    required Map<String, dynamic> staff,
+    required List<Map<String, dynamic>> items,
+    required List<Map<String, dynamic>> banks,
+  }) {
+    var bytes = <int>[];
+    const centerBold = PosStyles(align: PosAlign.center, bold: true);
+    const centerBoldTall = PosStyles(
+      align: PosAlign.center,
+      bold: true,
+      height: PosTextSize.size2,
+    );
+
+    bytes += generator.hr();
+    bytes += generator.text('*** UNPAID INVOICE ***', styles: centerBoldTall);
+    bytes += generator.text('THIS IS NOT A RECEIPT', styles: centerBoldTall);
+    bytes += generator.text(
+      'PAYMENT HAS NOT BEEN RECEIVED',
+      styles: centerBold,
+    );
+    bytes += generator.hr();
+
+    final invoiceId = transaction['transactionID']?.toString() ?? '';
+    final createdRaw = transaction['createdAt']?.toString() ?? '';
+    final createdDt = _parseReceiptCreatedAt(createdRaw);
+    final dateLine = createdDt != null
+        ? _sanitizeEscPosText(DateFormatter.dateTime(createdDt))
+        : (createdRaw.isNotEmpty ? _sanitizeEscPosText(createdRaw) : '-');
+
+    bytes += generator.row([
+      PosColumn(
+        text: 'Invoice:',
+        width: 4,
+        styles: const PosStyles(bold: true),
+      ),
+      PosColumn(text: _sanitizeEscPosText(invoiceId), width: 8),
+    ]);
+    bytes += generator.row([
+      PosColumn(text: 'Date:', width: 4, styles: const PosStyles(bold: true)),
+      PosColumn(text: dateLine, width: 8),
+    ]);
+
+    final patientLine = _sanitizeEscPosText(
+      patientDisplayNameFromJson(
+        Map<String, dynamic>.from(patient),
+        unknownFallback: '',
+      ),
+    );
+    bytes += generator.row([
+      PosColumn(
+        text: 'Patient:',
+        width: 4,
+        styles: const PosStyles(bold: true),
+      ),
+      PosColumn(text: patientLine.isNotEmpty ? patientLine : '-', width: 8),
+    ]);
+    final preparedBy = _receiptLineStaffName(staff);
+    bytes += generator.row([
+      PosColumn(
+        text: 'Prepared:',
+        width: 4,
+        styles: const PosStyles(bold: true),
+      ),
+      PosColumn(text: preparedBy.isNotEmpty ? preparedBy : '-', width: 8),
+    ]);
+
+    bytes += generator.hr();
+    bytes += generator.row([
+      PosColumn(text: 'Desc', width: 6, styles: const PosStyles(bold: true)),
+      PosColumn(text: 'Qty', width: 2, styles: const PosStyles(bold: true)),
+      PosColumn(text: 'Amt', width: 4, styles: const PosStyles(bold: true)),
+    ]);
+
+    for (final item in items) {
+      final desc = _sanitizeEscPosText((item['description'] ?? '').toString());
+      final qty = (item['quantity'] ?? 0).toString();
+      final totalVal = _asNum(item['total']);
+      bytes += generator.row([
+        PosColumn(text: desc.trim(), width: 6),
+        PosColumn(text: qty, width: 2),
+        PosColumn(text: _formatNaira(totalVal), width: 4),
+      ]);
+    }
+
+    final totalAmount = _asNum(transaction['totalAmount']);
+    final amountPaid = _asNum(transaction['amountPaid']);
+    final dueRaw = totalAmount - amountPaid;
+    final amountDue = dueRaw < 0 ? 0 : dueRaw;
+
+    bytes += generator.hr();
+    bytes += generator.row([
+      PosColumn(text: 'Total:', width: 6, styles: const PosStyles(bold: true)),
+      PosColumn(text: _formatNaira(totalAmount), width: 6),
+    ]);
+    bytes += generator.row([
+      PosColumn(
+        text: 'Amount paid:',
+        width: 6,
+        styles: const PosStyles(bold: true),
+      ),
+      PosColumn(text: _formatNaira(amountPaid), width: 6),
+    ]);
+    bytes += generator.row([
+      PosColumn(
+        text: 'Amount due:',
+        width: 6,
+        styles: const PosStyles(bold: true, height: PosTextSize.size2),
+      ),
+      PosColumn(
+        text: _formatNaira(amountDue),
+        width: 6,
+        styles: const PosStyles(bold: true, height: PosTextSize.size2),
+      ),
+    ]);
+
+    if (amountPaid > 0) {
+      bytes += generator.feed(1);
+      bytes += generator.text(
+        'PARTLY PAID - BALANCE STILL DUE',
+        styles: centerBold,
+      );
+    }
+
+    bytes += generator.hr();
+    bytes += generator.text(
+      'PAY INTO ANY OF THESE ACCOUNTS',
+      styles: centerBold,
+    );
+    bytes += generator.hr();
+
+    final printableBanks = banks.where((bank) {
+      final name = bank['name']?.toString().trim() ?? '';
+      final account = bank['accountNumber']?.toString().trim() ?? '';
+      return name.isNotEmpty || account.isNotEmpty;
+    }).toList();
+
+    if (printableBanks.isEmpty) {
+      bytes += generator.text(
+        'No bank accounts on file',
+        styles: const PosStyles(align: PosAlign.center),
+      );
+    } else {
+      for (var i = 0; i < printableBanks.length; i++) {
+        if (i > 0) bytes += generator.feed(1);
+        final name = _sanitizeEscPosText(
+          printableBanks[i]['name']?.toString().trim() ?? '',
+        );
+        final account = _sanitizeEscPosText(
+          printableBanks[i]['accountNumber']?.toString().trim() ?? '',
+        );
+        if (name.isNotEmpty) {
+          bytes += generator.text(name, styles: centerBold);
+        }
+        if (account.isNotEmpty) {
+          bytes += generator.text(account, styles: centerBoldTall);
+        }
+      }
+    }
+
+    bytes += generator.hr();
+    bytes += generator.text(
+      'Do not treat this slip as proof of payment.',
+      styles: centerBold,
+    );
+    return bytes;
+  }
+
   /// Generates ESC/POS bytes (logo, barcode, body).
   static Future<List<int>> buildBytes({
     required Map<String, dynamic> data,
@@ -384,9 +609,6 @@ class ReceiptEscposService {
     final items = ((data['itemSnapshots'] as List?) ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
-
-    final txnId = transaction['transactionID']?.toString() ?? '';
-    final barcodeDigits = _barcodeDataFromTxnId(txnId);
 
     final logo = await _loadLogoRaster(
       logoAssetPath ?? OrgConfig.instance.logoAsset,
@@ -423,6 +645,25 @@ class ReceiptEscposService {
         styles: const PosStyles(align: PosAlign.center),
       );
     }
+
+    if (data['documentKind']?.toString() == unpaidInvoiceDocumentKind) {
+      bytes += _unpaidInvoiceBody(
+        generator: generator,
+        transaction: transaction,
+        patient: patient,
+        staff: staff,
+        items: items,
+        banks: ((data['banks'] as List?) ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList(),
+      );
+      bytes += generator.feed(2);
+      bytes += generator.cut();
+      return bytes;
+    }
+
+    final txnId = transaction['transactionID']?.toString() ?? '';
+    final barcodeDigits = _barcodeDataFromTxnId(txnId);
 
     bytes += generator.hr();
     bytes += generator.barcode(

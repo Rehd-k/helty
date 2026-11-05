@@ -118,11 +118,15 @@ class _ReceiptPrinterPickerBodyState extends State<_ReceiptPrinterPickerBody> {
       }
       if (!mounted) return;
       nav.pop();
+      final isUnpaidInvoice =
+          widget.data['documentKind']?.toString() ==
+          ReceiptEscposService.unpaidInvoiceDocumentKind;
+      final documentLabel = isUnpaidInvoice ? 'Invoice' : 'Receipt';
       messenger?.showSnackBar(
         SnackBar(
           content: Text(
             copies == 1
-                ? 'Receipt sent to $name'
+                ? '$documentLabel sent to $name'
                 : '$copies copies sent to $name',
           ),
         ),
@@ -246,7 +250,8 @@ class _ReceiptCopyCountDialog extends StatefulWidget {
   const _ReceiptCopyCountDialog();
 
   @override
-  State<_ReceiptCopyCountDialog> createState() => _ReceiptCopyCountDialogState();
+  State<_ReceiptCopyCountDialog> createState() =>
+      _ReceiptCopyCountDialogState();
 }
 
 class _ReceiptCopyCountDialogState extends State<_ReceiptCopyCountDialog> {
@@ -280,9 +285,7 @@ class _ReceiptCopyCountDialogState extends State<_ReceiptCopyCountDialog> {
         autofocus: true,
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        decoration: const InputDecoration(
-          labelText: 'Copies',
-        ),
+        decoration: const InputDecoration(labelText: 'Copies'),
         onChanged: (_) => setState(() {}),
       ),
       actions: [

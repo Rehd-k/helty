@@ -4,6 +4,8 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app_router.gr.dart';
+import '../../app/product_definition.dart';
 import '../../app/product_module_access.dart';
 import '../../models/staff_model.dart';
 import '../../models/staff_registration_options.dart';
@@ -308,6 +310,14 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
       appBar: AppBar(
         title: const Text('Staff details'),
         actions: [
+          if (ProductModuleAccess.isModuleEnabled(AppModule.administration))
+            IconButton(
+              tooltip: 'View activity',
+              onPressed: () => context.router.push(
+                SuperAdminAuditLogRoute(staffId: widget.staffId),
+              ),
+              icon: const Icon(Icons.history),
+            ),
           IconButton(
             tooltip: 'Delete staff',
             onPressed: _busy ? null : _confirmDelete,

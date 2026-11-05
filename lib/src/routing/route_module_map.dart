@@ -292,6 +292,7 @@ const Map<String, AppModule> _routeModules = {
 
   // Administration / CMD / CMAC / super admin
   'SuperAdminHubRoute': AppModule.administration,
+  'SuperAdminAuditLogRoute': AppModule.administration,
   'CMDDashboardRoute': AppModule.administration,
   'CMDHospitalOverviewRoute': AppModule.administration,
   'CMDFinancialCommandRoute': AppModule.administration,

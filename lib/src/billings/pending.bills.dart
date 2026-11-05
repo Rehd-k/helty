@@ -15,6 +15,7 @@ import '../models/invoice_billing_models.dart';
 import '../models/staff_attribution.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
+import '../printing/escpos/unpaid_invoice_print.dart';
 import '../services/invoice_service.dart';
 import '../widgets/filter.patients.dart';
 import 'hmo_coverage_ui.dart';
@@ -693,6 +694,18 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                 ),
                               ),
                             OutlinedButton.icon(
+                              onPressed: () =>
+                                  printUnpaidInvoice(context, invoice),
+                              icon: const Icon(Icons.print_outlined, size: 16),
+                              label: const Text('Print invoice'),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 34),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                              ),
+                            ),
+                            OutlinedButton.icon(
                               onPressed:
                                   _splittingInvoiceIds.contains(invoice.id)
                                   ? null
@@ -793,6 +806,13 @@ void _showContextMenu(
         ),
       ),
       const PopupMenuItem(
+        value: 'Print invoice',
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [Icon(Icons.print_outlined), Text('Print invoice')],
+        ),
+      ),
+      const PopupMenuItem(
         value: 'View Details',
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -821,6 +841,8 @@ void _showContextMenu(
   //   // Menu is now fully dismissed — safe to update state.
   if (selected == 'View Details') {
     handleSelect(invoice);
+  } else if (selected == 'Print invoice') {
+    await printUnpaidInvoice(context, invoice);
   } else if (selected == 'HMO') {
     await _handlePendingHmoAction(context, invoice, onHmoChanged);
   }

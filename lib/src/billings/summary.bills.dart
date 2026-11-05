@@ -6,6 +6,7 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/shared/finance_status_colors.dart';
 
 import '../models/invoice.dart';
+import '../printing/escpos/unpaid_invoice_print.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/grid.widgets.dart';
 import 'pending.bills.dart';
@@ -84,18 +85,43 @@ class SummaryBills extends ConsumerWidget {
 
             const SizedBox(height: 24),
 
-            // Action Button
-            SizedBox(
-              height: 50,
-              child: FilledButton.icon(
-                onPressed: () =>
-                    openCustomModal(context, invoice, auth.staff?.id ?? ''),
-                icon: const Icon(Icons.payment, size: 18),
-                label: const Text(
-                  'Proceed to Payment',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final printButton = OutlinedButton.icon(
+                  onPressed: () => printUnpaidInvoice(context, invoice),
+                  icon: const Icon(Icons.print_outlined, size: 18),
+                  label: const Text(
+                    'Print invoice',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                );
+                final payButton = FilledButton.icon(
+                  onPressed: () =>
+                      openCustomModal(context, invoice, auth.staff?.id ?? ''),
+                  icon: const Icon(Icons.payment, size: 18),
+                  label: const Text(
+                    'Proceed to Payment',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                );
+                if (constraints.maxWidth < 420) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: 50, child: printButton),
+                      const SizedBox(height: 12),
+                      SizedBox(height: 50, child: payButton),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: SizedBox(height: 50, child: printButton)),
+                    const SizedBox(width: 12),
+                    Expanded(child: SizedBox(height: 50, child: payButton)),
+                  ],
+                );
+              },
             ),
           ],
         ),

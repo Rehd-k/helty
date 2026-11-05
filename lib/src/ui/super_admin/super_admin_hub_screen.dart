@@ -132,6 +132,16 @@ class SuperAdminHubScreen extends ConsumerWidget {
                         ),
                       ),
                       _HubCard(
+                        title: 'Audit log',
+                        subtitle:
+                            'Every staff create, update, delete, and sign-in, '
+                            'with time, role, and what changed.',
+                        icon: Icons.fact_check_outlined,
+                        onTap: () => context.router.push(
+                          SuperAdminAuditLogRoute(),
+                        ),
+                      ),
+                      _HubCard(
                         title: 'Merge patients',
                         subtitle:
                             'Combine a duplicate record into a survivor. '

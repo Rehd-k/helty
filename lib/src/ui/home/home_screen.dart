@@ -420,6 +420,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           route: SuperAdminStaffListRoute(),
         ),
       );
+      if (moduleOn(AppModule.administration)) {
+        common.add(
+          MenuItem(
+            label: 'Audit log',
+            icon: Icons.fact_check_outlined,
+            route: SuperAdminAuditLogRoute(),
+          ),
+        );
+      }
       // Available on every product (Register is shared; services need billing).
       common.add(
         const MenuItem(

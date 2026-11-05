@@ -11,6 +11,10 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     guards: const [ProductModuleGuard()],
   ),
   AutoRoute(
+    page: SuperAdminAuditLogRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
     page: CMDDashboardRoute.page,
     initial: initialCmd,
     guards: const [ProductModuleGuard()],

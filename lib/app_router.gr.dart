@@ -464,6 +464,8 @@ import 'package:helty/src/ui/patinets_services/enlist_service_screen.dart'
     as _i128;
 import 'package:helty/src/ui/patinets_services/render_services.dart' as _i263;
 import 'package:helty/src/ui/patinets_services/view_services.dart' as _i290;
+import 'package:helty/src/ui/super_admin/super_admin_audit_log_screen.dart'
+    as _i307;
 import 'package:helty/src/ui/super_admin/super_admin_hub_screen.dart' as _i278;
 import 'package:helty/src/ui/super_admin/super_admin_staff_detail_screen.dart'
     as _i279;
@@ -8542,6 +8544,57 @@ class StoreStockRoute extends _i295.PageRouteInfo<void> {
       return const _i277.StoreStockScreen();
     },
   );
+}
+
+/// generated route for
+/// [_i307.SuperAdminAuditLogScreen]
+class SuperAdminAuditLogRoute
+    extends _i295.PageRouteInfo<SuperAdminAuditLogRouteArgs> {
+  SuperAdminAuditLogRoute({
+    _i296.Key? key,
+    String? staffId,
+    List<_i295.PageRouteInfo>? children,
+  }) : super(
+         SuperAdminAuditLogRoute.name,
+         args: SuperAdminAuditLogRouteArgs(key: key, staffId: staffId),
+         initialChildren: children,
+       );
+
+  static const String name = 'SuperAdminAuditLogRoute';
+
+  static _i295.PageInfo page = _i295.PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<SuperAdminAuditLogRouteArgs>();
+      return _i307.SuperAdminAuditLogScreen(
+        key: args.key,
+        staffId: args.staffId,
+      );
+    },
+  );
+}
+
+class SuperAdminAuditLogRouteArgs {
+  const SuperAdminAuditLogRouteArgs({this.key, this.staffId});
+
+  final _i296.Key? key;
+
+  final String? staffId;
+
+  @override
+  String toString() {
+    return 'SuperAdminAuditLogRouteArgs{key: $key, staffId: $staffId}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! SuperAdminAuditLogRouteArgs) return false;
+    return key == other.key && staffId == other.staffId;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ staffId.hashCode;
 }
 
 /// generated route for

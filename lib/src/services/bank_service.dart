@@ -48,6 +48,20 @@ class BankService {
     );
   }
 
+  /// Every registered bank, paging past the API default page size.
+  Future<List<BankModel>> fetchAllBanks() async {
+    final all = <BankModel>[];
+    var skip = 0;
+    const take = 100;
+    while (true) {
+      final page = await fetchBanks(skip: skip, take: take);
+      all.addAll(page.data);
+      if (!page.hasMore || page.data.isEmpty) break;
+      skip += page.data.length;
+    }
+    return all;
+  }
+
   Future<BankModel> createBank(String name, String accountNumber) async {
     final resp = await _dio.post(
       '/banks',
