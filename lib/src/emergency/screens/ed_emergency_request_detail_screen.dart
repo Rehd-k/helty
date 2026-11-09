@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:helty/src/core/storage/token_storage.dart';
+import 'package:helty/src/chat/services/internal_chat_socket.dart';
 import 'package:helty/src/emergency/models/emergency_request_model.dart';
 import 'package:helty/src/emergency/providers/emergency_request_providers.dart';
 import 'package:helty/src/emergency/services/emergency_request_service.dart';
@@ -31,9 +34,23 @@ class _EdEmergencyRequestDetailScreenState
   final _noteController = TextEditingController();
   bool _updating = false;
   bool _noteSeeded = false;
+  StreamSubscription<Map<String, dynamic>>? _requestSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestSub = ref
+        .read(internalChatSocketProvider)
+        .emergencyRequestStream
+        .listen((event) {
+      if (event['id']?.toString() != widget.id) return;
+      ref.invalidate(emergencyRequestDetailProvider(widget.id));
+    });
+  }
 
   @override
   void dispose() {
+    _requestSub?.cancel();
     _noteController.dispose();
     super.dispose();
   }
@@ -71,7 +88,7 @@ class _EdEmergencyRequestDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    // Keep submitted polling / siren alive while viewing a request.
+    // Keep the submitted-request listener and siren alive while viewing a request.
     ref.watch(emergencyRequestPollProvider);
     final detailAsync = ref.watch(emergencyRequestDetailProvider(widget.id));
 

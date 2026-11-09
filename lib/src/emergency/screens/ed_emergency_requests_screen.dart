@@ -21,7 +21,7 @@ class _EdEmergencyRequestsScreenState
   @override
   void initState() {
     super.initState();
-    // Start inbox polling / local alerts while this screen (or app) is open.
+    // Listen for emergency socket events / local alerts while this screen is open.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(emergencyRequestPollProvider);
     });
@@ -31,7 +31,7 @@ class _EdEmergencyRequestsScreenState
   Widget build(BuildContext context) {
     final status = ref.watch(emergencyRequestStatusFilterProvider);
     final inboxAsync = ref.watch(emergencyRequestInboxProvider);
-    // Keep poll alive while inbox is mounted.
+    // Keep the socket listener alive while the inbox is mounted.
     ref.watch(emergencyRequestPollProvider);
 
     return Scaffold(

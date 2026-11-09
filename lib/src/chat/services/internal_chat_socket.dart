@@ -7,6 +7,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../core/storage/token_storage.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../models/chat_models.dart';
 
 /// Socket.IO client for internal chat and ticket threads (see docs/flutter-internal-chat-integration.md).
 class InternalChatSocket {
@@ -29,6 +30,13 @@ class InternalChatSocket {
   final _chatErrorController = StreamController<String>.broadcast();
   final _pendingOrdersTickController =
       StreamController<Map<String, dynamic>>.broadcast();
+  final _emergencyRequestController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _loginCodesChangedController = StreamController<void>.broadcast();
+  final _presenceUpdateController =
+      StreamController<ChatStaffPresence>.broadcast();
+  final _onlineUsersController =
+      StreamController<List<ChatStaffPresence>>.broadcast();
   final _connectionStateController =
       StreamController<InternalChatConnectionState>.broadcast();
 
@@ -41,6 +49,14 @@ class InternalChatSocket {
   Stream<String> get chatErrorStream => _chatErrorController.stream;
   Stream<Map<String, dynamic>> get pendingOrdersTickStream =>
       _pendingOrdersTickController.stream;
+  Stream<Map<String, dynamic>> get emergencyRequestStream =>
+      _emergencyRequestController.stream;
+  Stream<void> get loginCodesChangedStream =>
+      _loginCodesChangedController.stream;
+  Stream<ChatStaffPresence> get presenceUpdateStream =>
+      _presenceUpdateController.stream;
+  Stream<List<ChatStaffPresence>> get onlineUsersStream =>
+      _onlineUsersController.stream;
   Stream<InternalChatConnectionState> get connectionStateStream =>
       _connectionStateController.stream;
 
@@ -95,6 +111,27 @@ class InternalChatSocket {
       if (data is Map) {
         _pendingOrdersTickController.add(Map<String, dynamic>.from(data));
       }
+    });
+    _socket!.on('emergency_request', (data) {
+      if (data is Map && !_emergencyRequestController.isClosed) {
+        _emergencyRequestController.add(Map<String, dynamic>.from(data));
+      }
+    });
+    _socket!.on('login_codes_changed', (_) {
+      if (!_loginCodesChangedController.isClosed) {
+        _loginCodesChangedController.add(null);
+      }
+    });
+    _socket!.on('presenceUpdate', (data) {
+      if (data is! Map || _presenceUpdateController.isClosed) return;
+      final parsed = ChatStaffPresence.tryParse(
+        Map<String, dynamic>.from(data),
+      );
+      if (parsed != null) _presenceUpdateController.add(parsed);
+    });
+    _socket!.on('online_users', (data) {
+      if (_onlineUsersController.isClosed) return;
+      _onlineUsersController.add(_parseOnlineUsers(data));
     });
 
     _socket!.onConnect((_) {
@@ -246,6 +283,10 @@ class InternalChatSocket {
     _ticketMessageController.close();
     _chatErrorController.close();
     _pendingOrdersTickController.close();
+    _emergencyRequestController.close();
+    _loginCodesChangedController.close();
+    _presenceUpdateController.close();
+    _onlineUsersController.close();
     _connectionStateController.close();
   }
 
@@ -253,6 +294,43 @@ class InternalChatSocket {
     if (!_connectionStateController.isClosed) {
       _connectionStateController.add(next);
     }
+  }
+
+  static List<ChatStaffPresence> _parseOnlineUsers(dynamic raw) {
+    final list = raw is List
+        ? raw
+        : raw is Map
+            ? (raw['onlineUsers'] ?? raw['users'] ?? raw['staff'])
+            : null;
+    if (list is! List) return const [];
+    final out = <ChatStaffPresence>[];
+    for (final entry in list) {
+      if (entry is Map) {
+        final map = Map<String, dynamic>.from(entry);
+        // `id` is Staff.id. `staffId` on this payload is the employee code.
+        final id = map['id']?.toString() ??
+            map['userId']?.toString() ??
+            map['staffId']?.toString();
+        if (id == null || id.isEmpty) continue;
+        final status = ChatPresenceStatusX.fromApi(map['status']?.toString());
+        out.add(
+          ChatStaffPresence(
+            staffId: id,
+            status: status == ChatPresenceStatus.unknown
+                ? ChatPresenceStatus.online
+                : status,
+          ),
+        );
+      } else if (entry is String && entry.isNotEmpty) {
+        out.add(
+          ChatStaffPresence(
+            staffId: entry,
+            status: ChatPresenceStatus.online,
+          ),
+        );
+      }
+    }
+    return out;
   }
 
   static List<String> _parseJoinedConversationIds(dynamic raw) {

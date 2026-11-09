@@ -70,6 +70,52 @@ void main() {
       expect(hgb.referenceEvaluation!.isAbnormal, isFalse);
     });
 
+    test('parses nested AST rows for the results dialog', () {
+      final order = LabOrderModel.fromJson({
+        'id': 'req-ast',
+        'encounterId': 'enc-1',
+        'catalogTestId': 'cat-mcs',
+        'testType': 'Urine MCS',
+        'status': 'Completed',
+        'labOrder': {
+          'items': [
+            {
+              'astRequested': true,
+              'results': [
+                {
+                  'value': 'E. coli',
+                  'fieldId': 'org',
+                  'field': {'label': 'Organism', 'position': 0},
+                },
+              ],
+              'astResults': [
+                {
+                  'id': 'ast-1',
+                  'orderItemId': 'item-1',
+                  'antibiotic': {
+                    'id': 'abx-1',
+                    'name': 'Ciprofloxacin',
+                    'code': 'CIP',
+                    'position': 2,
+                  },
+                  'resultOption': {
+                    'id': 'opt-r',
+                    'label': 'Resistant',
+                    'code': 'R',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      });
+
+      expect(order.astRequested, isTrue);
+      expect(order.astResults, hasLength(1));
+      expect(order.astResults.single.antibiotic.code, 'CIP');
+      expect(order.astResults.single.resultOption.label, 'Resistant');
+    });
+
     test('parses result lines without referenceEvaluation', () {
       final order = LabOrderModel.fromJson({
         'id': 'req-2',

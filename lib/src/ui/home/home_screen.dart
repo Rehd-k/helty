@@ -587,6 +587,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           route: DashboardRoute(),
           color: DepartmentColors.itDepartment,
         ),
+        if (moduleOn(AppModule.display))
+          const MenuItem(
+            label: 'Waiting-room videos',
+            icon: Icons.smart_display_outlined,
+            route: DisplayVideosAdminRoute(),
+            color: DepartmentColors.itDepartment,
+          ),
       ]);
     }
 

@@ -27,6 +27,7 @@ enum AppModule {
   ict,
   housekeeping,
   administration,
+  display,
 }
 
 class ProductDefinition {
@@ -61,6 +62,7 @@ const kAllAppModules = {
   AppModule.ict,
   AppModule.housekeeping,
   AppModule.administration,
+  AppModule.display,
 };
 
 const kHospitalProduct = ProductDefinition(

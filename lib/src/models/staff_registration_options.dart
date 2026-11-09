@@ -23,6 +23,7 @@ enum StaffAccountCategory {
   cmd,
   cmac,
   superAdmin,
+  display,
 }
 
 extension StaffAccountCategoryLabels on StaffAccountCategory {
@@ -46,8 +47,19 @@ extension StaffAccountCategoryLabels on StaffAccountCategory {
     StaffAccountCategory.cmd => 'CMD',
     StaffAccountCategory.cmac => 'CMAC',
     StaffAccountCategory.superAdmin => 'Super Admin',
+    StaffAccountCategory.display => 'Display',
   };
 }
+
+/// Lane locked onto a waiting-room display account.
+const kDisplayLaneOptions = <(String value, String label)>[
+  ('TRIAGE', 'Nurse triage'),
+  ('CONSULTATION', 'Consultation'),
+  ('PHARMACY', 'Pharmacy'),
+  ('RADIOLOGY', 'Radiology'),
+  ('LAB', 'Laboratory'),
+  ('ALL', 'All waiting patients'),
+];
 
 /// One row in the role dropdown: UI label + values sent to `/staff`.
 class StaffRoleOption {
@@ -404,6 +416,13 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
       staffRole: 'SUPER_ADMIN',
     ),
   ],
+  StaffAccountCategory.display: [
+    const StaffRoleOption(
+      label: 'Waiting-room screen',
+      accountType: AccountType.display,
+      staffRole: 'DISPLAY_SCREEN',
+    ),
+  ],
 };
 
 String _normalizeStaffRole(String role) =>
@@ -458,6 +477,7 @@ StaffAccountCategory? accountCategoryForAccountType(AccountType? accountType) {
     AccountType.cmd => StaffAccountCategory.cmd,
     AccountType.cmac => StaffAccountCategory.cmac,
     AccountType.super_admin => StaffAccountCategory.superAdmin,
+    AccountType.display => StaffAccountCategory.display,
     AccountType.staff => StaffAccountCategory.frontDesk,
   };
 }

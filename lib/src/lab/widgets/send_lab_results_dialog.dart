@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/app/org_config.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
+import 'package:helty/src/lab/utils/lab_ast_display.dart';
 import 'package:helty/src/lab/services/lab_api_service.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
 import 'package:pdf/pdf.dart';
@@ -139,8 +140,14 @@ String buildLabResultsSmsText({
       final unit = result.field?.unit?.trim();
       final reference = result.field?.referenceRange?.trim();
       final value = result.value.trim();
-      final valueWithUnit = unit == null || unit.isEmpty ? value : '$value $unit';
+      final embedded = parseEmbeddedAstReport(value);
       final name = label == null || label.isEmpty ? 'Result' : label;
+      if (embedded != null) {
+        buffer.writeln('  $name');
+        buffer.writeln(formatEmbeddedAstMessage(value));
+        continue;
+      }
+      final valueWithUnit = unit == null || unit.isEmpty ? value : '$value $unit';
       buffer.write('  $name: $valueWithUnit');
       if (reference != null && reference.isNotEmpty) {
         buffer.write(' (ref $reference)');
@@ -149,17 +156,15 @@ String buildLabResultsSmsText({
     }
 
     if (entry.item.astRequested && entry.item.astResults.isNotEmpty) {
-      final ast = List<LabAstResult>.from(entry.item.astResults)
-        ..sort((a, b) {
-          final byPosition =
-              a.antibiotic.position.compareTo(b.antibiotic.position);
-          return byPosition != 0
-              ? byPosition
-              : a.antibiotic.name.compareTo(b.antibiotic.name);
-        });
+      final ast = sortedLabAstResults(entry.item.astResults);
       buffer.writeln('  Antibiotic susceptibility');
+      buffer.writeln('  Antibiotic | Code | Result');
       for (final row in ast) {
-        buffer.writeln('  ${row.antibiotic.name}: ${row.resultOption.label}');
+        buffer.writeln(
+          '  ${labAstAntibioticName(row.antibiotic)} | '
+          '${labAstAntibioticCode(row.antibiotic)} | '
+          '${labAstResultText(row.resultOption)}',
+        );
       }
     }
     buffer.writeln();

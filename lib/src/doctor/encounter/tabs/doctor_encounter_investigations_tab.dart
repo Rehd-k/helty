@@ -10,6 +10,7 @@ import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_side_panel.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/lab/utils/lab_ast_display.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/models/lab_order_model.dart';
 import 'package:helty/src/models/service_model.dart';
@@ -656,7 +657,7 @@ class _InvestigationOrderCard extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
-                                    line.valueWithUnit,
+                                    labResultReadableValue(line.valueWithUnit),
                                     overflow: TextOverflow.ellipsis,
                                     style: theme.textTheme.labelMedium?.copyWith(
                                       fontWeight: FontWeight.w700,

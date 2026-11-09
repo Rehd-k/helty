@@ -76,6 +76,8 @@ class ProductModuleAccess {
       case 'super_admin':
       case 'admin':
         return AppModule.administration;
+      case 'display':
+        return AppModule.display;
       default:
         return null;
     }

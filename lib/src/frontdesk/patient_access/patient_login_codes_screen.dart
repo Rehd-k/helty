@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/chat/services/internal_chat_socket.dart';
 import 'package:helty/src/frontdesk/patient_access/patient_access_models.dart';
 import 'package:helty/src/frontdesk/patient_access/patient_access_providers.dart';
 import 'package:helty/src/frontdesk/patient_access_permissions.dart';
@@ -22,7 +23,9 @@ class PatientLoginCodesScreen extends ConsumerStatefulWidget {
 
 class _PatientLoginCodesScreenState
     extends ConsumerState<PatientLoginCodesScreen> {
-  Timer? _poll;
+  Timer? _expiryTimer;
+  StreamSubscription<void>? _codesSub;
+  StreamSubscription<InternalChatConnectionState>? _connectionSub;
   List<PatientLoginCodeRow> _items = [];
   String _delivery = 'staff';
   bool _loading = true;
@@ -31,14 +34,39 @@ class _PatientLoginCodesScreenState
   @override
   void initState() {
     super.initState();
+    final socket = ref.read(internalChatSocketProvider);
+    _codesSub = socket.loginCodesChangedStream.listen((_) {
+      unawaited(_load(quiet: true));
+    });
+    _connectionSub = socket.connectionStateStream.listen((state) {
+      if (state == InternalChatConnectionState.connected) {
+        unawaited(_load(quiet: true));
+      }
+    });
     Future<void>.microtask(_load);
-    _poll = Timer.periodic(const Duration(seconds: 8), (_) => _load(quiet: true));
+    _expiryTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _dropExpired(),
+    );
   }
 
   @override
   void dispose() {
-    _poll?.cancel();
+    _expiryTimer?.cancel();
+    _codesSub?.cancel();
+    _connectionSub?.cancel();
     super.dispose();
+  }
+
+  void _dropExpired() {
+    if (!mounted || _items.isEmpty) return;
+    final now = DateTime.now();
+    final active = _items.where((row) {
+      final expiresAt = row.expiresAt;
+      return expiresAt == null || expiresAt.isAfter(now);
+    }).toList();
+    if (active.length == _items.length) return;
+    setState(() => _items = active);
   }
 
   Future<void> _load({bool quiet = false}) async {

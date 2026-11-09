@@ -24,6 +24,10 @@ class AppRouter extends RootStackRouter {
       guards: [const AuthGuard()],
       children: ProductRoutes.homeChildren(),
     ),
+    AutoRoute(
+      page: DisplayBoardRoute.page,
+      guards: [const AuthGuard()],
+    ),
 
     // patient form is shown separately (modal/push)
   ];

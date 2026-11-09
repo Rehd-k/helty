@@ -4,6 +4,7 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
+import '../../app/product_definition.dart';
 import '../../app/product_module_access.dart';
 import '../../paitients/merge_patients_dialog.dart';
 import '../../providers/auth_provider.dart';
@@ -166,6 +167,16 @@ class SuperAdminHubScreen extends ConsumerWidget {
                           const HealthCampaignsAdminRoute(),
                         ),
                       ),
+                      if (ProductModuleAccess.isModuleEnabled(AppModule.display))
+                        _HubCard(
+                          title: 'Waiting-room videos',
+                          subtitle:
+                              'Upload the videos that play beside the waiting lists.',
+                          icon: Icons.smart_display_outlined,
+                          onTap: () => context.router.push(
+                            const DisplayVideosAdminRoute(),
+                          ),
+                        ),
                       _HubCard(
                         title: 'Health news',
                         subtitle:

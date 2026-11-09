@@ -485,6 +485,10 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
 
   // ICT
   AutoRoute(page: DashboardRoute.page, guards: const [ProductModuleGuard()]),
+  AutoRoute(
+    page: DisplayVideosAdminRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
 
   AutoRoute(
     page: DepartmentStaffRoute.page,

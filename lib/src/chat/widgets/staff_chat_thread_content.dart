@@ -35,7 +35,7 @@ class StaffChatThreadContent extends ConsumerStatefulWidget {
   /// Shown above the thread when [embedded] (e.g. side panel) so the peer is clear.
   final String? conversationTitle;
 
-  /// Direct-chat peer; used for `GET /chat/presence/:staffId`.
+  /// Direct-chat peer. Presence starts from one lookup, then follows the socket.
   final String? peerStaffId;
   final VoidCallback? onBack;
   final double maxBubbleWidthFraction;
@@ -58,7 +58,8 @@ class _StaffChatThreadContentState
   String? _olderCursor;
   StreamSubscription<Map<String, dynamic>>? _recvSub;
   StreamSubscription<String>? _errSub;
-  Timer? _presenceTimer;
+  StreamSubscription<ChatStaffPresence>? _presenceSub;
+  StreamSubscription<List<ChatStaffPresence>>? _onlineUsersSub;
   Timer? _markReadDebounce;
   InternalChatSocket? _socket;
   late final StaffChatShellNotifier _shellNotifier;
@@ -78,11 +79,33 @@ class _StaffChatThreadContentState
       _scrollController.addListener(_onScroll);
       _load();
       _refreshPeerPresence();
-      _presenceTimer = Timer.periodic(
-        const Duration(seconds: 45),
-        (_) => _refreshPeerPresence(),
-      );
+      _presenceSub = _socket!.presenceUpdateStream.listen(_onPresenceUpdate);
+      _onlineUsersSub = _socket!.onlineUsersStream.listen(_onOnlineUsers);
     });
+  }
+
+  void _applyPeerPresence(ChatPresenceStatus status) {
+    if (!mounted || status == ChatPresenceStatus.unknown) return;
+    if (status == _peerPresence) return;
+    setState(() => _peerPresence = status);
+  }
+
+  void _onPresenceUpdate(ChatStaffPresence presence) {
+    final peerId = _resolvedPeerStaffId;
+    if (peerId == null || presence.staffId != peerId) return;
+    _applyPeerPresence(presence.status);
+  }
+
+  void _onOnlineUsers(List<ChatStaffPresence> users) {
+    final peerId = _resolvedPeerStaffId;
+    if (peerId == null || peerId.isEmpty) return;
+    if (users.any((user) => user.staffId == peerId)) {
+      _applyPeerPresence(ChatPresenceStatus.online);
+      return;
+    }
+    if (_peerPresence == ChatPresenceStatus.online) {
+      _applyPeerPresence(ChatPresenceStatus.offline);
+    }
   }
 
   @override
@@ -90,12 +113,16 @@ class _StaffChatThreadContentState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.conversationId != widget.conversationId) {
       _shellNotifier.setActiveConversationId(widget.conversationId);
+      _resolvedPeerStaffId = widget.peerStaffId;
+      _peerPresence = ChatPresenceStatus.unknown;
+      unawaited(_refreshPeerPresence());
     }
   }
 
   @override
   void dispose() {
-    _presenceTimer?.cancel();
+    _presenceSub?.cancel();
+    _onlineUsersSub?.cancel();
     _markReadDebounce?.cancel();
     _recvSub?.cancel();
     _errSub?.cancel();

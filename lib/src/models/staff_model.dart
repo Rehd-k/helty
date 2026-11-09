@@ -26,6 +26,7 @@ enum AccountType {
   cmd,
   cmac,
   super_admin,
+  display,
 
   /// Unknown / legacy token not mapped to a department.
   staff;
@@ -51,6 +52,7 @@ enum AccountType {
     theatre,
     janitor,
     super_admin,
+    display,
   ];
 
   /// Serialized to the API as UPPER_SNAKE (e.g. `BILLING`).
@@ -77,6 +79,7 @@ enum AccountType {
     theatre => 'Theatre',
     janitor => 'Housekeeping',
     super_admin => 'Super Admin',
+    display => 'Display',
     staff => 'Staff (legacy)',
   };
 
@@ -170,6 +173,7 @@ class Staff {
     this.email,
     this.phone,
     this.isActive = true,
+    this.displayLane,
     /// Present on some admin / detail API responses when a forgot-password code exists.
     this.passwordResetCode,
     this.passwordResetCodeExpiresAt,
@@ -192,6 +196,9 @@ class Staff {
   final String? email;
   final String? phone;
   final bool isActive;
+
+  /// Waiting-room lane for a display account: TRIAGE, CONSULTATION, PHARMACY, RADIOLOGY, LAB, or ALL.
+  final String? displayLane;
 
   /// 6-digit (or other) code for staff password reset; read-only from API.
   final String? passwordResetCode;
@@ -314,7 +321,7 @@ class Staff {
     final passwordReset = _passwordResetFromJson(json);
 
     return Staff(
-      id: _requiredString(json['id']),
+      id: _requiredString(json['id'] ?? json['sub']),
       staffId: _requiredString(json['staffId']),
       firstName: _requiredString(json['firstName']),
       lastName: _requiredString(json['lastName']),
@@ -337,6 +344,7 @@ class Staff {
       email: json['email'] as String?,
       phone: json['phone']?.toString(), // API may return int or string
       isActive: (json['isActive'] as bool?) ?? true,
+      displayLane: _optionalString(json['displayLane']),
       passwordResetCode: passwordReset?.code,
       passwordResetCodeExpiresAt: passwordReset?.expiresAt,
       createdByName: formatStaffName(
@@ -366,6 +374,7 @@ class Staff {
     'email': email,
     'phone': phone,
     'isActive': isActive,
+    if (displayLane != null) 'displayLane': displayLane,
   };
 
   /// Payload for POST/PATCH `/staff` with nursing role assignment rules applied.
@@ -425,6 +434,8 @@ class Staff {
     String? email,
     String? phone,
     bool? isActive,
+    String? displayLane,
+    bool clearDisplayLane = false,
     String? passwordResetCode,
     DateTime? passwordResetCodeExpiresAt,
     String? createdByName,
@@ -449,6 +460,7 @@ class Staff {
     email: email ?? this.email,
     phone: phone ?? this.phone,
     isActive: isActive ?? this.isActive,
+    displayLane: clearDisplayLane ? null : (displayLane ?? this.displayLane),
     passwordResetCode: clearPasswordResetCode
         ? null
         : (passwordResetCode ?? this.passwordResetCode),

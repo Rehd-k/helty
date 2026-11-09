@@ -1,6 +1,7 @@
 import 'package:helty/src/printing/pdf/org_pdf_logo.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
+import 'package:helty/src/lab/utils/lab_ast_display.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/printing/pdf/report_template_preference.dart';
 import 'package:helty/src/printing/pdf/report_templates/report_pdf_theme.dart';
@@ -62,13 +63,13 @@ bool _labResultIsPrintable(LabResult r) =>
 bool labOrderItemHasPrintableResults(LabOrderItem item) =>
     item.results.any(_labResultIsPrintable);
 
-List<LabAstResult> _sortedAstResultsForPdf(LabOrderItem item) {
-  final list = List<LabAstResult>.from(item.astResults)
-    ..sort((a, b) {
-      final pc = a.antibiotic.position.compareTo(b.antibiotic.position);
-      return pc != 0 ? pc : a.antibiotic.name.compareTo(b.antibiotic.name);
-    });
-  return list;
+PdfColor _astResultPdfColor(LabAstResultOption option) {
+  return switch (classifyLabAstResult(option)) {
+    LabAstInterpretation.sensitive => PdfColor.fromHex('#166534'),
+    LabAstInterpretation.resistant => PdfColor.fromHex('#B91C1C'),
+    LabAstInterpretation.intermediate => PdfColor.fromHex('#B45309'),
+    LabAstInterpretation.other => PdfColors.grey900,
+  };
 }
 
 pw.Widget _labBuildTestHeaderWidget(
@@ -290,7 +291,12 @@ pw.Widget _labBuildResultsTableWidget(
           referenceRange: field?.referenceRange,
           serverEvaluation: r.referenceEvaluation,
         );
-        final resultText = labPdfResultValueTextFor(r.value, eval);
+        final embedded = parseEmbeddedAstReport(r.value);
+        final resultText = embedded != null
+            ? (embedded.narrative.isEmpty
+                  ? 'See antibiotic susceptibility'
+                  : embedded.narrative)
+            : labPdfResultValueTextFor(r.value, eval);
         final resultColor =
             labPdfReferenceValueColor(
               eval,
@@ -320,7 +326,7 @@ List<pw.Widget> _labBuildAstPdfWidgets(
   _LabPdfPalette palette,
   LabOrderItem item,
 ) {
-  final results = _sortedAstResultsForPdf(item);
+  final results = sortedLabAstResults(item.astResults);
   final widgets = <pw.Widget>[
     pw.SizedBox(height: 12),
     pw.Text(
@@ -348,6 +354,7 @@ List<pw.Widget> _labBuildAstPdfWidgets(
     return widgets;
   }
 
+  final legend = labAstResultLegend(results);
   widgets.add(
     pw.Table(
       border: pw.TableBorder(
@@ -358,38 +365,145 @@ List<pw.Widget> _labBuildAstPdfWidgets(
         top: pw.BorderSide(color: palette.border, width: 0.5),
         bottom: pw.BorderSide(color: palette.border, width: 0.5),
       ),
-      columnWidths: const {0: pw.FlexColumnWidth(3), 1: pw.FlexColumnWidth(2)},
+      columnWidths: const {
+        0: pw.FlexColumnWidth(4.2),
+        1: pw.FlexColumnWidth(1.4),
+        2: pw.FlexColumnWidth(2.8),
+      },
       children: [
         pw.TableRow(
           decoration: pw.BoxDecoration(color: palette.primary),
           children: [
             _labBuildTableHeaderCell('Antibiotic', light: true),
+            _labBuildTableHeaderCell('Code', light: true),
             _labBuildTableHeaderCell('Result', light: true),
           ],
         ),
         ...results.asMap().entries.map((e) {
           final rowIndex = e.key;
-          final r = e.value;
-          final abxName =
-              r.antibiotic.code != null && r.antibiotic.code!.isNotEmpty
-              ? '${r.antibiotic.name} (${r.antibiotic.code})'
-              : r.antibiotic.name;
-          final resultLabel =
-              r.resultOption.code != null && r.resultOption.code!.isNotEmpty
-              ? '${r.resultOption.label} (${r.resultOption.code})'
-              : r.resultOption.label;
+          final result = e.value;
           final stripe = rowIndex.isEven ? PdfColors.white : palette.surface;
           return pw.TableRow(
             decoration: pw.BoxDecoration(color: stripe),
             children: [
-              _labBuildTableCell(abxName),
-              _labBuildTableCell(resultLabel, isBold: true),
+              _labBuildTableCell(labAstAntibioticName(result.antibiotic)),
+              _labBuildTableCell(
+                labAstAntibioticCode(result.antibiotic),
+                muted: true,
+              ),
+              _labBuildTableCell(
+                labAstResultText(result.resultOption),
+                isBold: true,
+                valueColor: _astResultPdfColor(result.resultOption),
+              ),
             ],
           );
         }),
       ],
     ),
   );
+  if (legend != null) {
+    widgets.add(
+      pw.Padding(
+        padding: const pw.EdgeInsets.only(top: 4),
+        child: pw.Text(
+          legend,
+          style: pw.TextStyle(fontSize: 8, color: palette.textMuted),
+        ),
+      ),
+    );
+  }
+  return widgets;
+}
+
+List<pw.Widget> _labEmbeddedAstSections(
+  _LabPdfPalette palette,
+  List<LabResult> results,
+) {
+  final widgets = <pw.Widget>[];
+  for (final result in results) {
+    final report = parseEmbeddedAstReport(result.value);
+    if (report == null) continue;
+    final legend = report.legend.isEmpty
+        ? null
+        : report.legend
+              .map((item) => '${item.code} = ${item.meaning}')
+              .join(' | ');
+    widgets.add(pw.SizedBox(height: 10));
+    widgets.add(
+      pw.Text(
+        'Antibiotic Susceptibility',
+        style: pw.TextStyle(
+          fontSize: 10,
+          fontWeight: pw.FontWeight.bold,
+          color: palette.primary,
+        ),
+      ),
+    );
+    widgets.add(pw.SizedBox(height: 6));
+    widgets.add(
+      pw.Table(
+        border: pw.TableBorder(
+          horizontalInside: pw.BorderSide(color: palette.border, width: 0.4),
+          verticalInside: pw.BorderSide(color: palette.border, width: 0.35),
+          left: pw.BorderSide(color: palette.border, width: 0.5),
+          right: pw.BorderSide(color: palette.border, width: 0.5),
+          top: pw.BorderSide(color: palette.border, width: 0.5),
+          bottom: pw.BorderSide(color: palette.border, width: 0.5),
+        ),
+        columnWidths: const {
+          0: pw.FlexColumnWidth(4.2),
+          1: pw.FlexColumnWidth(1.6),
+        },
+        children: [
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: palette.primary),
+            children: [
+              _labBuildTableHeaderCell('Antibiotic', light: true),
+              _labBuildTableHeaderCell('Result', light: true),
+            ],
+          ),
+          ...report.rows.asMap().entries.map((entry) {
+            final stripe = entry.key.isEven ? PdfColors.white : palette.surface;
+            final row = entry.value;
+            return pw.TableRow(
+              decoration: pw.BoxDecoration(color: stripe),
+              children: [
+                _labBuildTableCell(row.antibiotic),
+                _labBuildTableCell(
+                  row.result,
+                  isBold: true,
+                  valueColor: switch (classifyAstToken(row.result)) {
+                    LabAstInterpretation.sensitive => PdfColor.fromHex(
+                      '#166534',
+                    ),
+                    LabAstInterpretation.resistant => PdfColor.fromHex(
+                      '#B91C1C',
+                    ),
+                    LabAstInterpretation.intermediate => PdfColor.fromHex(
+                      '#B45309',
+                    ),
+                    LabAstInterpretation.other => palette.primary,
+                  },
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+    if (legend != null) {
+      widgets.add(
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 4),
+          child: pw.Text(
+            legend,
+            style: pw.TextStyle(fontSize: 8, color: palette.textMuted),
+          ),
+        ),
+      );
+    }
+  }
   return widgets;
 }
 
@@ -459,9 +573,13 @@ List<pw.Widget> _buildLabOrderItemPdfSections(
       );
     }
 
-    if (item.astRequested) {
+    final hasEmbedded = reportResults.any(
+      (result) => parseEmbeddedAstReport(result.value) != null,
+    );
+    if (item.astRequested && (item.astResults.isNotEmpty || !hasEmbedded)) {
       widgets.addAll(_labBuildAstPdfWidgets(palette, item));
     }
+    widgets.addAll(_labEmbeddedAstSections(palette, reportResults));
 
     final notes = item.scientistNotes?.trim() ?? '';
     if (notes.isNotEmpty) {

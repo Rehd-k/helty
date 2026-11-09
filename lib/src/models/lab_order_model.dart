@@ -39,6 +39,8 @@ class LabOrderModel {
     this.resultValues,
     this.resultLines,
     this.printableLabOrderId,
+    this.astRequested = false,
+    this.astResults = const [],
   });
 
   final String id;
@@ -56,6 +58,12 @@ class LabOrderModel {
 
   /// Nested structured [LabOrder] id for PDF printing via lab module API.
   final String? printableLabOrderId;
+
+  /// True when any nested lab item was ordered with antibiotic susceptibility.
+  final bool astRequested;
+
+  /// Susceptibility rows from nested `items[].astResults`.
+  final List<LabAstResult> astResults;
 
   static Map<String, dynamic>? _nestedLabOrderMap(Map<String, dynamic> json) {
     final inv = json['invoiceItem'];
@@ -134,6 +142,39 @@ class LabOrderModel {
     return lines;
   }
 
+  static ({bool requested, List<LabAstResult> results}) _parseNestedAst(
+    Map<String, dynamic> json,
+  ) {
+    final labOrderMap = _nestedLabOrderMap(json);
+    if (labOrderMap == null) {
+      return (requested: false, results: const <LabAstResult>[]);
+    }
+    final items = labOrderMap['items'];
+    if (items is! List<dynamic>) {
+      return (requested: false, results: const <LabAstResult>[]);
+    }
+
+    final results = <LabAstResult>[];
+    var requested = false;
+    for (final item in items) {
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+      if (map['astRequested'] == true) requested = true;
+      final raw = map['astResults'];
+      if (raw is! List<dynamic>) continue;
+      for (final row in raw) {
+        if (row is! Map) continue;
+        final rowMap = Map<String, dynamic>.from(row);
+        if (rowMap['antibiotic'] is! Map || rowMap['resultOption'] is! Map) {
+          continue;
+        }
+        results.add(LabAstResult.fromJson(rowMap));
+      }
+    }
+    if (results.isNotEmpty) requested = true;
+    return (requested: requested, results: results);
+  }
+
   static String? _createdAtFromJson(Map<String, dynamic> json) {
     final direct = json['createdAt']?.toString();
     if (direct != null && direct.isNotEmpty) return direct;
@@ -156,6 +197,7 @@ class LabOrderModel {
   factory LabOrderModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
     final nestedLines = _parseNestedItemResults(json);
+    final ast = _parseNestedAst(json);
     return LabOrderModel(
       id: str(json['id']),
       encounterId: str(json['encounterId']),
@@ -174,6 +216,8 @@ class LabOrderModel {
           : null,
       resultLines: nestedLines,
       printableLabOrderId: _printableLabOrderIdFromJson(json),
+      astRequested: ast.requested,
+      astResults: ast.results,
     );
   }
 }

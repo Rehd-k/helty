@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-
-import '../models/lab_models.dart';
+import 'package:helty/src/helper/theme.dart';
+import 'package:helty/src/lab/models/lab_models.dart';
+import 'package:helty/src/lab/ui/widgets/lab_clinical_ui.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 /// Susceptibility grid: one dropdown per antibiotic row.
 class LabAstResultGrid extends StatelessWidget {
@@ -59,103 +61,155 @@ class LabAstResultGrid extends StatelessWidget {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
+    final headerStyle = theme.textTheme.labelSmall?.copyWith(
+      fontWeight: FontWeight.w700,
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: Column(
           children: [
-            Expanded(
-              flex: 3,
-              child: Text(
-                'Antibiotic',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
+            ColoredBox(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.55,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Text('Antibiotic', style: headerStyle),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 2, child: Text('Code', style: headerStyle)),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      flex: 4,
+                      child: Text('Result', style: headerStyle),
+                    ),
+                  ],
                 ),
               ),
             ),
+            for (var i = 0; i < sorted.length; i++)
+              _AstEntryRow(
+                antibiotic: sorted[i],
+                index: i,
+                options: options,
+                selectedId: selections[sorted[i].id],
+                onChanged: onChanged,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AstEntryRow extends StatelessWidget {
+  const _AstEntryRow({
+    required this.antibiotic,
+    required this.index,
+    required this.options,
+    required this.selectedId,
+    required this.onChanged,
+  });
+
+  final LabAntibiotic antibiotic;
+  final int index;
+  final List<LabAstResultOption> options;
+  final String? selectedId;
+  final void Function(String antibioticId, String? resultOptionId) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final code = antibiotic.code?.trim() ?? '';
+    final value = selectedId != null && options.any((o) => o.id == selectedId)
+        ? selectedId
+        : null;
+
+    return ColoredBox(
+      color: LabClinicalUi.zebraFill(cs, index),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 5,
+              child: HeltyEllipsisText(
+                text: antibiotic.name.trim().isEmpty ? '-' : antibiotic.name,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 20),
             Expanded(
               flex: 2,
-              child: Text(
-                'Susceptibility',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
+              child: HeltyEllipsisText(
+                text: code.isEmpty ? '-' : code,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              flex: 4,
+              child: DropdownButtonFormField<String>(
+                key: ValueKey('${antibiotic.id}-$value'),
+                initialValue: value,
+                isExpanded: true,
+                isDense: true,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                ),
+                hint: const Text('—'),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('—'),
+                  ),
+                  ...options.map(
+                    (opt) => DropdownMenuItem<String>(
+                      value: opt.id,
+                      child: Text(
+                        opt.code != null && opt.code!.trim().isNotEmpty
+                            ? '${opt.label} (${opt.code})'
+                            : opt.label,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (next) => onChanged(antibiotic.id, next),
               ),
             ),
           ],
         ),
-        const Divider(height: 24),
-        ...sorted.map((abx) {
-          final selectedId = selections[abx.id];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        abx.name,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (abx.code != null && abx.code!.isNotEmpty)
-                        Text(
-                          abx.code!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: DropdownButtonFormField<String>(
-                    key: ValueKey('${abx.id}-$selectedId'),
-                    initialValue: selectedId != null &&
-                            options.any((o) => o.id == selectedId)
-                        ? selectedId
-                        : null,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                    hint: const Text('—'),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('—'),
-                      ),
-                      ...options.map(
-                        (opt) => DropdownMenuItem<String>(
-                          value: opt.id,
-                          child: Text(
-                            opt.code != null && opt.code!.isNotEmpty
-                                ? '${opt.label} (${opt.code})'
-                                : opt.label,
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: (v) => onChanged(abx.id, v),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
+      ),
     );
   }
 }

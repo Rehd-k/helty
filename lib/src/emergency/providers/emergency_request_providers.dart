@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../chat/services/internal_chat_socket.dart';
 import '../../notifications/local_notification_platform_service.dart';
 import '../models/emergency_request_model.dart';
 import '../services/emergency_request_service.dart';
@@ -27,10 +28,11 @@ final emergencyRequestDetailProvider = FutureProvider.autoDispose
       return ref.watch(emergencyRequestServiceProvider).get(id);
     });
 
-/// Polls the ED emergency inbox every 15s and fires local notifications for
-/// newly seen SUBMITTED requests. While any request remains SUBMITTED, plays
-/// the ambulance siren immediately and again every 5 minutes until the
-/// Submitted tab is empty.
+/// Loads the submitted emergency inbox once, then again when the staff socket
+/// reports a new or updated request. Fires a local notification for newly
+/// seen SUBMITTED requests. While any request remains SUBMITTED, plays the
+/// ambulance siren immediately and again every 5 minutes until the Submitted
+/// tab is empty.
 ///
 /// Reading this provider returns a callback that forces an immediate
 /// re-check (useful after acknowledging / dispatching a request).
@@ -53,7 +55,7 @@ final emergencyRequestPollProvider =
       }
       await sirenPlayer.play();
     } catch (_) {
-      // Audio failures should not interrupt inbox polling.
+      // Audio failures should not interrupt inbox updates.
     }
   }
 
@@ -124,20 +126,46 @@ final emergencyRequestPollProvider =
       await _persistSeen(seen);
       ref.invalidate(emergencyRequestInboxProvider);
     } catch (_) {
-      // Poll failures are silent; inbox refresh indicator still works.
+      // Refresh failures are silent; the inbox refresh button still works.
     }
   }
 
-  void refresh() => unawaited(tick());
+  var checking = false;
+  var queued = false;
+  Future<void> refresh() async {
+    if (checking) {
+      queued = true;
+      return;
+    }
+    checking = true;
+    try {
+      do {
+        queued = false;
+        await tick();
+      } while (queued);
+    } finally {
+      checking = false;
+    }
+  }
 
-  refresh();
-  final timer = Timer.periodic(const Duration(seconds: 15), (_) => tick());
+  final socket = ref.read(internalChatSocketProvider);
+  final eventSub = socket.emergencyRequestStream.listen((_) {
+    unawaited(refresh());
+  });
+  final connectionSub = socket.connectionStateStream.listen((state) {
+    if (state == InternalChatConnectionState.connected) {
+      unawaited(refresh());
+    }
+  });
+
+  unawaited(refresh());
   ref.onDispose(() {
-    timer.cancel();
+    eventSub.cancel();
+    connectionSub.cancel();
     sirenTimer?.cancel();
     sirenPlayer.dispose();
   });
-  return refresh;
+  return () => unawaited(refresh());
 });
 
 const _seenKey = 'ed_emergency_request_seen_ids';

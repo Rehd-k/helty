@@ -7,6 +7,8 @@ import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/lab/ui/lab_record_sample_sheet.dart';
+import 'package:helty/src/lab/utils/lab_ast_display.dart';
+import 'package:helty/src/lab/widgets/lab_ast_results_table.dart';
 import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
 import 'package:helty/src/printing/pdf/report_template_picker.dart';
@@ -518,6 +520,16 @@ class _OrderItemCard extends StatelessWidget {
                     ...reportResults.map((r) {
                       final field = r.field ?? fieldMap[r.fieldId];
                       final label = field?.label ?? r.fieldId;
+                      final embedded = parseEmbeddedAstReport(r.value);
+                      if (embedded != null) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: LabEmbeddedAstBlock(
+                            label: label,
+                            report: embedded,
+                          ),
+                        );
+                      }
                       final unit = field?.unit;
                       final ref = field?.referenceRange;
                       final eval = resolveLabReferenceEvaluation(
@@ -605,21 +617,18 @@ class _OrderItemCard extends StatelessWidget {
                   ),
                 ),
               ),
-            if (item.astRequested) ...[
+            if (item.astRequested &&
+                (item.astResults.isNotEmpty ||
+                    !reportResults.any(
+                      (result) => parseEmbeddedAstReport(result.value) != null,
+                    ))) ...[
               const SizedBox(height: 4),
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LabAstResultsTable(
+                  results: item.astResults,
+                  pending: item.astResults.isEmpty,
                 ),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: _AstResultsSection(item: item),
               ),
             ],
             Wrap(
@@ -669,104 +678,6 @@ class _OrderItemCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _AstResultsSection extends StatelessWidget {
-  const _AstResultsSection({required this.item});
-
-  final LabOrderItem item;
-
-  List<LabAstResult> get _sortedResults {
-    final list = List<LabAstResult>.from(item.astResults)
-      ..sort((a, b) {
-        final pc = a.antibiotic.position.compareTo(b.antibiotic.position);
-        return pc != 0 ? pc : a.antibiotic.name.compareTo(b.antibiotic.name);
-      });
-    return list;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final results = _sortedResults;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Antibiotic Susceptibility',
-          style: theme.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 6),
-        if (results.isEmpty)
-          Text(
-            'AST pending',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontStyle: FontStyle.italic,
-            ),
-          )
-        else ...[
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Text(
-                  'Antibiotic',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  'Result',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ...results.map((r) {
-            final abxName =
-                r.antibiotic.code != null && r.antibiotic.code!.isNotEmpty
-                ? '${r.antibiotic.name} (${r.antibiotic.code})'
-                : r.antibiotic.name;
-            final resultLabel =
-                r.resultOption.code != null && r.resultOption.code!.isNotEmpty
-                ? '${r.resultOption.label} (${r.resultOption.code})'
-                : r.resultOption.label;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Text(abxName, style: theme.textTheme.bodySmall),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      resultLabel,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ],
     );
   }
 }

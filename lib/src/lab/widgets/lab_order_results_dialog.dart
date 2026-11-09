@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
+import 'package:helty/src/lab/utils/lab_ast_display.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
+import 'package:helty/src/lab/widgets/lab_ast_results_table.dart';
 import 'package:helty/src/models/lab_order_model.dart';
 
 /// Read-only review dialog for a single operational lab order item (head of lab).
@@ -70,10 +72,17 @@ void showLabOrderItemReviewDialog(
   );
 }
 
-Widget? _orderItemTrailing(LabOrderItem item, ThemeData theme) {
+  Widget? _orderItemTrailing(LabOrderItem item, ThemeData theme) {
   final notes = item.scientistNotes?.trim() ?? '';
+  final hasEmbedded = item.results.any(
+    (result) => parseEmbeddedAstReport(result.value) != null,
+  );
   final children = <Widget>[
-    if (item.astRequested) _LabOrderItemAstSection(item: item, theme: theme),
+    if (item.astRequested && (item.astResults.isNotEmpty || !hasEmbedded))
+      LabAstResultsTable(
+        results: item.astResults,
+        pending: item.astResults.isEmpty,
+      ),
     if (notes.isNotEmpty) _ScientistNotesCallout(notes: notes, theme: theme),
   ];
   if (children.isEmpty) return null;
@@ -167,6 +176,13 @@ void showLabOrderResultsDialog(
     resultsSection = _LabResultsEmptyState(theme: theme);
   }
 
+  final hasEmbedded =
+      lines?.any((line) => parseEmbeddedAstReport(line.value) != null) ??
+      false;
+  final showAst =
+      (order.astRequested || order.astResults.isNotEmpty) &&
+      (order.astResults.isNotEmpty || !hasEmbedded);
+
   showDialog<void>(
     context: context,
     builder: (ctx) => _LabResultsDialogShell(
@@ -175,6 +191,12 @@ void showLabOrderResultsDialog(
       statusTone: _labStatusToneFromLabel(order.status, hasResults: hasResults),
       metaChips: metaChips,
       resultsSection: resultsSection,
+      trailingSection: showAst
+          ? LabAstResultsTable(
+              results: order.astResults,
+              pending: order.astResults.isEmpty,
+            )
+          : null,
       actions: [
         if (onDelete != null)
           TextButton(
@@ -458,59 +480,23 @@ class _LabResultsPanel extends StatelessWidget {
   final String emptyMessage;
   final List<bool> hiddenFlags;
 
-  @override
-  Widget build(BuildContext context) {
-    if (lines.isEmpty) {
-      return _LabResultsEmptyState(theme: theme, message: emptyMessage);
+  List<Widget> _resultSections() {
+    final plain = <({LabOrderResultLine line, bool hidden})>[];
+    final embedded =
+        <({LabOrderResultLine line, EmbeddedAstReport report, bool hidden})>[];
+    for (var i = 0; i < lines.length; i++) {
+      final hidden = i < hiddenFlags.length && hiddenFlags[i];
+      final report = parseEmbeddedAstReport(lines[i].value);
+      if (report == null) {
+        plain.add((line: lines[i], hidden: hidden));
+      } else {
+        embedded.add((line: lines[i], report: report, hidden: hidden));
+      }
     }
 
-    final abnormalCount = lines.where((line) {
-      final eval = resolveLabReferenceEvaluation(
-        value: line.value,
-        referenceRange: line.referenceRange,
-        serverEvaluation: line.referenceEvaluation,
-      );
-      return labResultIsAbnormal(eval);
-    }).length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Text(
-              'Results',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '${lines.length} parameter${lines.length == 1 ? '' : 's'}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (abnormalCount > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  '$abnormalCount abnormal',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onErrorContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 10),
+    final sections = <Widget>[];
+    if (plain.isNotEmpty) {
+      sections.add(
         Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -567,21 +553,89 @@ class _LabResultsPanel extends StatelessWidget {
                 height: 1,
                 color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
               ),
-              ...lines.asMap().entries.map((entry) {
-                final isLast = entry.key == lines.length - 1;
-                final hidden = entry.key < hiddenFlags.length
-                    ? hiddenFlags[entry.key]
-                    : false;
+              ...plain.asMap().entries.map((entry) {
                 return _LabOrderResultLineRow(
-                  line: entry.value,
+                  line: entry.value.line,
                   theme: theme,
-                  hiddenFromReport: hidden,
-                  showDivider: !isLast,
+                  hiddenFromReport: entry.value.hidden,
+                  showDivider: entry.key != plain.length - 1,
                 );
               }),
             ],
           ),
         ),
+      );
+    }
+    for (var i = 0; i < embedded.length; i++) {
+      if (sections.isNotEmpty || i > 0) {
+        sections.add(const SizedBox(height: 12));
+      }
+      final block = embedded[i];
+      sections.add(
+        LabEmbeddedAstBlock(
+          label: block.line.label,
+          report: block.report,
+          hiddenFromReport: block.hidden,
+        ),
+      );
+    }
+    return sections;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (lines.isEmpty) {
+      return _LabResultsEmptyState(theme: theme, message: emptyMessage);
+    }
+
+    final abnormalCount = lines.where((line) {
+      final eval = resolveLabReferenceEvaluation(
+        value: line.value,
+        referenceRange: line.referenceRange,
+        serverEvaluation: line.referenceEvaluation,
+      );
+      return labResultIsAbnormal(eval);
+    }).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Results',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${lines.length} parameter${lines.length == 1 ? '' : 's'}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (abnormalCount > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$abnormalCount abnormal',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onErrorContainer,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 10),
+        ..._resultSections(),
       ],
     );
   }
@@ -851,135 +905,3 @@ class _LabOrderResultLineRow extends StatelessWidget {
   }
 }
 
-class _LabOrderItemAstSection extends StatelessWidget {
-  const _LabOrderItemAstSection({required this.item, required this.theme});
-
-  final LabOrderItem item;
-  final ThemeData theme;
-
-  List<LabAstResult> get _sortedResults {
-    final list = List<LabAstResult>.from(item.astResults)
-      ..sort((a, b) {
-        final pc = a.antibiotic.position.compareTo(b.antibiotic.position);
-        return pc != 0 ? pc : a.antibiotic.name.compareTo(b.antibiotic.name);
-      });
-    return list;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final results = _sortedResults;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.35,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.biotech_outlined,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Antibiotic Susceptibility',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (results.isEmpty)
-            Text(
-              'AST pending',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
-              ),
-            )
-          else ...[
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'Antibiotic',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Result',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            ...results.map((r) {
-              final abxName =
-                  r.antibiotic.code != null && r.antibiotic.code!.isNotEmpty
-                  ? '${r.antibiotic.name} (${r.antibiotic.code})'
-                  : r.antibiotic.name;
-              final resultLabel =
-                  r.resultOption.code != null && r.resultOption.code!.isNotEmpty
-                  ? '${r.resultOption.label} (${r.resultOption.code})'
-                  : r.resultOption.label;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: Text(abxName, style: theme.textTheme.bodyMedium),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.secondaryContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          resultLabel,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onSecondaryContainer,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ],
-      ),
-    );
-  }
-}

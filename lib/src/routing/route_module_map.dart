@@ -285,6 +285,8 @@ const Map<String, AppModule> _routeModules = {
   'HospitalAssetDetailRoute': AppModule.administration,
   'HospitalAssetAccessRoute': AppModule.administration,
   'HousekeepingHomeRoute': AppModule.housekeeping,
+  'DisplayVideosAdminRoute': AppModule.display,
+  'DisplayBoardRoute': AppModule.display,
   'HousekeepingWorkersRoute': AppModule.housekeeping,
   'HousekeepingAreasRoute': AppModule.housekeeping,
   'HousekeepingShiftsRoute': AppModule.housekeeping,

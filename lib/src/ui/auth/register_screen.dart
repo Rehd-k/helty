@@ -149,6 +149,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
     if (ok && mounted) {
       final auth = ref.read(authProvider);
+      if (auth.staff?.accountType == AccountType.display ||
+          _selectedAccountType == AccountType.display) {
+        context.router.replaceAll([const DisplayBoardRoute()]);
+        return;
+      }
       final accountType = auth.staff?.accountType?.name ?? '';
       final staffRole = auth.staff?.staffRole ?? '';
       final initialChild = _initialRouteAfterRegister(accountType, staffRole);

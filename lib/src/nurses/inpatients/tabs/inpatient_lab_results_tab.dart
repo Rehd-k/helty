@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
+import 'package:helty/src/lab/utils/lab_ast_display.dart';
 import 'package:helty/src/lab/services/lab_api_service.dart';
 import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/models/lab_order_model.dart';
@@ -341,7 +342,9 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
     if (lines != null && lines.isNotEmpty) {
       return lines
           .take(3)
-          .map((l) => '${l.label}: ${l.valueWithUnit}')
+          .map(
+            (l) => '${l.label}: ${labResultReadableValue(l.valueWithUnit)}',
+          )
           .join(' · ');
     }
     final legacy = order.resultValues;

@@ -15,6 +15,7 @@ import '../../core/storage/saved_login_storage.dart';
 import '../../helper/app_timezone.dart';
 import '../../helper/theme.dart';
 import '../../models/saved_login.dart';
+import '../../models/staff_model.dart';
 import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
 import '../../routing/initial_route_for_role.dart';
@@ -91,9 +92,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _loadSavedLogins();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _maybeShowAnnouncements(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowAnnouncements();
+      _openDisplayBoardIfNeeded();
+    });
+  }
+
+  void _openDisplayBoardIfNeeded() {
+    if (!mounted) return;
+    final staff = ref.read(authProvider).staff;
+    if (staff?.accountType != AccountType.display) return;
+    context.router.replaceAll([const DisplayBoardRoute()]);
   }
 
   Future<void> _maybeShowAnnouncements() async {
@@ -232,6 +241,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       final staffRole = staff?.staffRole ?? '';
       final accountType = staff?.accountType?.name ?? '';
+      if (staff?.accountType == AccountType.display) {
+        context.router.replaceAll([const DisplayBoardRoute()]);
+        return;
+      }
       final PageRouteInfo initialChild = staffIsSuperAdmin(staff)
           ? (ProductEnvironment.isModuleEnabled(AppModule.administration)
                 ? const SuperAdminHubRoute()
@@ -250,6 +263,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final auth = ref.watch(authProvider);
 
     ref.listen(authProvider, (_, next) {
+      if (next.staff?.accountType == AccountType.display && !next.isLoading) {
+        _openDisplayBoardIfNeeded();
+      }
       if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
