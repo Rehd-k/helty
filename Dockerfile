@@ -29,7 +29,7 @@ ARG ORG_PHONES=0803 548 4144
 ARG ORG_EMAILS=orthoconsult365@gmail.com
 ARG ORG_WEBSITE=https://orthoconsult365.com
 ARG ORG_LOGO=assets/logo.png
-ARG API_BASE_URL=http://localhost:3000;http://qqsuvxrrrgzbxso5ng0zrmkq.89.116.38.252.sslip.io;
+ARG API_BASE_URL=http://qqsuvxrrrgzbxso5ng0zrmkq.89.116.38.252.sslip.io;
 ARG ORG_TAGLINES=OrthoConsult365 Specialist Hospital is a leading provider of orthopedic services in Uyo, Nigeria. We offer a wide range of services including orthopedic surgery, physical therapy, and rehabilitation.
 
 RUN printf '%s\n' \
