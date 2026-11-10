@@ -20,6 +20,30 @@ RUN flutter pub get
 
 COPY . .
 
+# .env is gitignored, so Coolify/git builds never have it — but pubspec
+# declares it as a Flutter asset, so the file must exist before `flutter build`.
+# Pass these as Coolify "Build Arguments" (or build-time env vars).
+ARG ORG_NAME=OrthoConsult365 Specialist Hospital
+ARG ORG_ADDRESSES=14 Ime Okon Avenue Osongama Estate Uyo 
+ARG ORG_PHONES=0803 548 4144
+ARG ORG_EMAILS=orthoconsult365@gmail.com
+ARG ORG_WEBSITE=https://orthoconsult365.com
+ARG ORG_LOGO=assets/logo.png
+ARG API_BASE_URL=http://localhost:3000;http://qqsuvxrrrgzbxso5ng0zrmkq.89.116.38.252.sslip.io;
+ARG ORG_TAGLINES=OrthoConsult365 Specialist Hospital is a leading provider of orthopedic services in Uyo, Nigeria. We offer a wide range of services including orthopedic surgery, physical therapy, and rehabilitation.
+
+RUN printf '%s\n' \
+    "ORG_NAME=${ORG_NAME}" \
+    "ORG_ADDRESSES=${ORG_ADDRESSES}" \
+    "ORG_PHONES=${ORG_PHONES}" \
+    "ORG_EMAILS=${ORG_EMAILS}" \
+    "ORG_WEBSITE=${ORG_WEBSITE}" \
+    "ORG_LOGO=${ORG_LOGO}" \
+    "API_BASE_URL=${API_BASE_URL}" \
+    "ORG_TAGLINES=${ORG_TAGLINES}" \
+    > .env \
+    && test -n "${API_BASE_URL}" || (echo "ERROR: API_BASE_URL build arg is required for release web builds" >&2; exit 1)
+
 RUN flutter build web \
     --no-tree-shake-icons \
     --no-wasm-dry-run \
