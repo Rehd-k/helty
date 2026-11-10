@@ -254,6 +254,7 @@ class RadiologyOrder {
     this.updatedAt,
     this.patient,
     this.requestedBy,
+    this.reportDoctorName,
   });
 
   final String id;
@@ -269,6 +270,16 @@ class RadiologyOrder {
   final List<RadiologyOrderItem> items;
   final RadiologyPatientRef? patient;
   final RadiologyStaffRef? requestedBy;
+
+  /// Free-text name typed for the printed result. Not a staff id.
+  final String? reportDoctorName;
+
+  /// Name printed as Doctor: the typed text, or the requesting staff name.
+  String get printDoctorName {
+    final custom = reportDoctorName?.trim() ?? '';
+    if (custom.isNotEmpty) return custom;
+    return requestedBy?.displayName.trim() ?? '';
+  }
 
   String get wardDisplayLabel =>
       RequestWardRef.labelFrom(ward: ward, wardId: wardId);
@@ -302,6 +313,27 @@ class RadiologyOrder {
               json['requestedBy'] as Map<String, dynamic>,
             )
           : null,
+      reportDoctorName: json['reportDoctorName'] as String?,
+    );
+  }
+
+  RadiologyOrder withReportDoctorName(String? name) {
+    final trimmed = name?.trim() ?? '';
+    return RadiologyOrder(
+      id: id,
+      patientId: patientId,
+      requestedById: requestedById,
+      items: items,
+      encounterId: encounterId,
+      departmentId: departmentId,
+      wardId: wardId,
+      ward: ward,
+      status: status,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      patient: patient,
+      requestedBy: requestedBy,
+      reportDoctorName: trimmed.isEmpty ? null : trimmed,
     );
   }
 }

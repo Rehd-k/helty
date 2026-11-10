@@ -24,6 +24,8 @@ import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/admissions/admission_discharge_helpers.dart';
 import 'package:helty/src/admissions/discharge_admission_dialog.dart';
 import 'package:helty/src/purchases/models/purchases_model.dart';
+import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/models/admission_model.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/helper/theme.dart';
@@ -53,6 +55,39 @@ const _accentIndigo = Color(0xFF4F46E5);
 const _accentGreen = Color(0xFF16A34A);
 const _accentAmber = Color(0xFFEA580C);
 const _accentRed = Color(0xFFDC2626);
+
+AdmissionModel? _admissionForBill(
+  List<AdmissionModel> admissions, {
+  String? admissionId,
+}) {
+  if (admissions.isEmpty) return null;
+  final linkedId = admissionId?.trim() ?? '';
+  if (linkedId.isNotEmpty) {
+    for (final admission in admissions) {
+      if (admission.id == linkedId) return admission;
+    }
+  }
+
+  AdmissionModel? newest(Iterable<AdmissionModel> rows) {
+    AdmissionModel? best;
+    for (final row in rows) {
+      final instant =
+          row.displayAdmissionInstant ?? DateTime.fromMillisecondsSinceEpoch(0);
+      if (best == null) {
+        best = row;
+        continue;
+      }
+      final bestInstant =
+          best.displayAdmissionInstant ?? DateTime.fromMillisecondsSinceEpoch(0);
+      if (instant.isAfter(bestInstant)) best = row;
+    }
+    return best;
+  }
+
+  return newest(admissions.where((row) => row.isActiveAdmission)) ??
+      newest(admissions.where((row) => row.isPendingBillingClearance)) ??
+      newest(admissions);
+}
 
 enum _InvoicePdfLayout { summary, itemized }
 
@@ -112,6 +147,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   /// From `GET /invoices/:id/payments`, merged with invoice detail (deduped by id).
   List<BillingInvoicePayment> _mergedInvoicePayments = [];
   BillingInvoiceDetail? _billingDetail;
+  DateTime? _admissionDate;
+  DateTime? _dischargeDate;
   BillingWallet? _wallet;
   bool _loading = true;
   String? _loadError;
@@ -403,6 +440,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         _loading = false;
         _loadError = 'Missing invoice id';
         _billingDetail = null;
+        _admissionDate = null;
+        _dischargeDate = null;
         _wallet = null;
         _mergedInvoicePayments = [];
       });
@@ -435,9 +474,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       } catch (_) {
         merged = List<BillingInvoicePayment>.from(detail.payments);
       }
+      final stay = await _stayForInvoice(detail);
       if (!mounted) return;
       setState(() {
         _billingDetail = detail;
+        _admissionDate = stay.admissionDate;
+        _dischargeDate = stay.dischargeDate;
         _discountPolicies = policies;
         _mergedInvoicePayments = merged;
         _wallet = wallet;
@@ -449,12 +491,37 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       if (!mounted) return;
       setState(() {
         _billingDetail = null;
+        _admissionDate = null;
+        _dischargeDate = null;
         _wallet = null;
         _mergedInvoicePayments = [];
         _loading = false;
         _loadError = e.toString();
       });
     }
+  }
+
+  Future<({DateTime? admissionDate, DateTime? dischargeDate})> _stayForInvoice(
+    BillingInvoiceDetail detail,
+  ) async {
+    var admissionDate = detail.admissionDate;
+    var dischargeDate = detail.dischargeDate;
+    final patientId = detail.patientId.trim();
+    if (patientId.isEmpty) {
+      return (admissionDate: admissionDate, dischargeDate: dischargeDate);
+    }
+    try {
+      final admissions = await _admissionService.getByPatientId(patientId);
+      final picked = _admissionForBill(
+        admissions,
+        admissionId: detail.admissionId,
+      );
+      if (picked != null) {
+        admissionDate = picked.displayAdmissionInstant ?? admissionDate;
+        dischargeDate = picked.dischargeDateTime ?? picked.dischargeDate;
+      }
+    } catch (_) {}
+    return (admissionDate: admissionDate, dischargeDate: dischargeDate);
   }
 
   String _formatDate(DateTime date) {
@@ -556,6 +623,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double balanceDue,
     required double walletBalance,
     required bool itemized,
+    DateTime? admissionDate,
+    DateTime? dischargeDate,
   }) async {
     await Printing.layoutPdf(
       onLayout: (format) async {
@@ -570,6 +639,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           balanceDue: balanceDue,
           walletBalance: walletBalance,
           itemized: itemized,
+          admissionDateLabel: admissionDate == null
+              ? null
+              : DateFormatter.dateTime(admissionDate),
+          dischargeDateLabel: dischargeDate == null
+              ? null
+              : DateFormatter.dateTime(dischargeDate),
         );
         return Uint8List.fromList(bytes);
       },
@@ -586,6 +661,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double balanceDue,
     required double walletBalance,
     required bool itemized,
+    DateTime? admissionDate,
+    DateTime? dischargeDate,
   }) async {
     final bytes = await buildInpatientInvoicePdf(
       format: PdfPageFormat.a4,
@@ -597,6 +674,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       totalPayments: totalPayments,
       balanceDue: balanceDue,
       walletBalance: walletBalance,
+      admissionDateLabel: admissionDate == null
+          ? null
+          : DateFormatter.dateTime(admissionDate),
+      dischargeDateLabel: dischargeDate == null
+          ? null
+          : DateFormatter.dateTime(dischargeDate),
       itemized: itemized,
     );
     final kind = itemized ? 'itemized' : 'summary';
@@ -1844,6 +1927,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       subtitle: snap.patientName.isEmpty
                           ? 'Invoice ${snap.invoiceDisplayId}'
                           : '${snap.patientName} · ${snap.invoiceDisplayId}',
+                      stayLabel: _stayLabel(),
                       compact: useCards,
                       status: _balanceChip(snap),
                       trailing: _headerActions(snap, compact: useCards),
@@ -1937,9 +2021,19 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return const Center(child: Text('Invoice data unavailable.'));
   }
 
+  String? _stayLabel() {
+    final admitted = _admissionDate;
+    if (admitted == null) return null;
+    final admittedText = 'Admitted ${DateFormatter.dateTime(admitted)}';
+    final discharged = _dischargeDate;
+    if (discharged == null) return admittedText;
+    return '$admittedText · Discharged ${DateFormatter.dateTime(discharged)}';
+  }
+
   Widget _pageHeader({
     required String subtitle,
     required bool compact,
+    String? stayLabel,
     Widget? status,
     List<Widget> trailing = const [],
   }) {
@@ -1988,6 +2082,14 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                   color: cs.onSurfaceVariant,
                 ),
               ),
+              if (stayLabel != null)
+                Text(
+                  stayLabel,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               if (compact && status != null) ...[
                 const SizedBox(height: 4),
                 Align(alignment: Alignment.centerLeft, child: status),
@@ -2059,6 +2161,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           balanceDue: snap.balanceDue,
           walletBalance: _wallet?.balance ?? 0,
           itemized: itemized,
+          admissionDate: _admissionDate,
+          dischargeDate: _dischargeDate,
         );
       } else {
         await _printInvoice(
@@ -2071,6 +2175,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           balanceDue: snap.balanceDue,
           walletBalance: _wallet?.balance ?? 0,
           itemized: itemized,
+          admissionDate: _admissionDate,
+          dischargeDate: _dischargeDate,
         );
       }
     }

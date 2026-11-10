@@ -25,6 +25,8 @@ Future<List<int>> buildInpatientInvoicePdf({
   required double balanceDue,
   required double walletBalance,
   required bool itemized,
+  String? admissionDateLabel,
+  String? dischargeDateLabel,
 }) async {
   final logo = await loadOrgPdfLogo();
 
@@ -418,6 +420,12 @@ Future<List<int>> buildInpatientInvoicePdf({
                     kv('Patient Name', displayPatientName, strong: true),
                     kv('Patient ID', patientDisplayId, strong: true),
                     kv('Invoice ID', invoiceDisplayId),
+                    if (admissionDateLabel != null &&
+                        admissionDateLabel.trim().isNotEmpty)
+                      kv('Admitted', admissionDateLabel.trim()),
+                    if (dischargeDateLabel != null &&
+                        dischargeDateLabel.trim().isNotEmpty)
+                      kv('Discharged', dischargeDateLabel.trim()),
                     kv('Generated', _formatPdfDate(generatedAt)),
                   ],
                 ),

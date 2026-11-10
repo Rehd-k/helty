@@ -17,10 +17,9 @@ Future<List<int>> buildRadiologyClinicalNotesPdf(
   final orderDateStr = order.createdAt != null && order.createdAt!.isNotEmpty
       ? order.createdAt!.split('T').first
       : '—';
-  final requestedByName = (order.requestedBy?.displayName ?? '').trim();
-  final requestedByLabel = requestedByName.isNotEmpty
-      ? requestedByName
-      : (order.requestedById.isNotEmpty ? order.requestedById : '—');
+  final requestedByLabel = order.printDoctorName.trim().isNotEmpty
+      ? order.printDoctorName.trim()
+      : '—';
 
   pw.Widget pdfOrderStatusPill(RadiologyOrderStatus status) {
     final colors = _clinicalNotesPdfOrderColors(status);
@@ -107,7 +106,7 @@ Future<List<int>> buildRadiologyClinicalNotesPdf(
                   '#${_shortId(order.id)}',
                   emphasize: true,
                 ),
-                theme.kv('Requested by', requestedByLabel),
+                theme.kv('Doctor', requestedByLabel),
               ],
             ),
           ],

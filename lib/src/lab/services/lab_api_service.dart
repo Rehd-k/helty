@@ -342,6 +342,13 @@ class LabApiService {
     );
   }
 
+  Future<void> updateOrderReportDoctor(String id, String reportDoctorName) async {
+    await _dio.patch(
+      '$_prefix/orders/$id',
+      data: {'reportDoctorName': reportDoctorName},
+    );
+  }
+
   Future<LabOrder> updateOrderStatus(String id, LabOrderStatus status) async {
     final response = await _dio.patch<Map<String, dynamic>>(
       '$_prefix/orders/$id',

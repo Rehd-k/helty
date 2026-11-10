@@ -49,6 +49,7 @@ class _LabReportFacts {
     required this.collectionDate,
     required this.qrData,
     required this.generatedLabel,
+    required this.doctorName,
     required this.entries,
   });
 
@@ -58,6 +59,7 @@ class _LabReportFacts {
   final String collectionDate;
   final String qrData;
   final String generatedLabel;
+  final String doctorName;
   final List<_LabPdfEntry> entries;
 
   factory _LabReportFacts.build({
@@ -65,6 +67,7 @@ class _LabReportFacts {
     required List<_LabPdfEntry> entries,
     required String requisitionLabel,
     required DateTime generatedOn,
+    String doctorName = '',
   }) {
     final org = OrgConfig.instance;
     final website = org.website.trim();
@@ -80,6 +83,7 @@ class _LabReportFacts {
       ),
       qrData: qrData,
       generatedLabel: DateFormatter.dateTime24(generatedOn),
+      doctorName: doctorName.trim(),
       entries: entries,
     );
   }
@@ -311,20 +315,32 @@ pw.Widget _labeledValue(String label, String value) {
 pw.Widget _patientGrid(_LabReportFacts facts) {
   return pw.Padding(
     padding: const pw.EdgeInsets.only(top: 8),
-    child: pw.Row(
+    child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Expanded(
-          flex: 3,
-          child: _labeledValue('Patient Name', facts.patientName),
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              flex: 3,
+              child: _labeledValue('Patient Name', facts.patientName),
+            ),
+            pw.SizedBox(width: 16),
+            pw.Expanded(
+              flex: 3,
+              child: _labeledValue('Collection Date', facts.collectionDate),
+            ),
+            pw.SizedBox(width: 16),
+            pw.Expanded(
+              flex: 2,
+              child: _labeledValue('Age / Sex', facts.ageSex),
+            ),
+          ],
         ),
-        pw.SizedBox(width: 16),
-        pw.Expanded(
-          flex: 3,
-          child: _labeledValue('Collection Date', facts.collectionDate),
-        ),
-        pw.SizedBox(width: 16),
-        pw.Expanded(flex: 2, child: _labeledValue('Age / Sex', facts.ageSex)),
+        if (facts.doctorName.isNotEmpty) ...[
+          pw.SizedBox(height: 8),
+          _labeledValue('Doctor', facts.doctorName),
+        ],
       ],
     ),
   );
@@ -850,6 +866,7 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
       ],
       requisitionLabel: '#$shortId',
       generatedOn: generatedOn,
+      doctorName: order.printDoctorName,
     ),
   );
 }
@@ -887,6 +904,9 @@ Future<List<int>> buildLabPatientItemsPdf({
           ),
       ],
       requisitionLabel: requisitionLabels.join(', '),
+      doctorName: LabOrder.combinedPrintDoctorName(
+        printable.map((entry) => entry.order),
+      ),
       generatedOn: DateTime.now(),
     ),
   );

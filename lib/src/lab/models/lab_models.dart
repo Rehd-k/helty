@@ -296,6 +296,7 @@ class LabOrder {
     required this.status,
     this.patient,
     this.doctor,
+    this.reportDoctorName,
     this.wardId,
     this.ward,
     this.items = const [],
@@ -306,10 +307,24 @@ class LabOrder {
   final LabOrderStatus status;
   final LabOrderPatient? patient;
   final LabOrderStaff? doctor;
+
+  /// Free-text name typed for the printed result. Not a staff id.
+  final String? reportDoctorName;
   final String? wardId;
   final RequestWardRef? ward;
   final List<LabOrderItem> items;
   final DateTime? createdAt;
+
+  /// Name printed as Doctor: the typed text, or the linked staff name.
+  String get printDoctorName {
+    final custom = reportDoctorName?.trim() ?? '';
+    if (custom.isNotEmpty) return custom;
+    final staff = doctor;
+    if (staff == null) return '';
+    final pretty = staff.capitalizedDisplayName.trim();
+    if (pretty.isNotEmpty) return pretty;
+    return staff.displayName.trim();
+  }
 
   String get wardDisplayLabel =>
       RequestWardRef.labelFrom(ward: ward, wardId: wardId);
@@ -323,6 +338,7 @@ class LabOrder {
     doctor: json['doctor'] != null
         ? LabOrderStaff.fromJson(json['doctor'] as Map<String, dynamic>)
         : null,
+    reportDoctorName: json['reportDoctorName'] as String?,
     wardId: json['wardId']?.toString(),
     ward: json['ward'] is Map
         ? RequestWardRef.fromJson(
@@ -344,22 +360,42 @@ class LabOrder {
     'status': status.apiValue,
     if (patient != null) 'patient': patient!.toJson(),
     if (doctor != null) 'doctor': doctor!.toJson(),
+    if (reportDoctorName != null) 'reportDoctorName': reportDoctorName,
     if (wardId != null) 'wardId': wardId,
     if (ward != null) 'ward': {'id': ward!.id, 'name': ward!.name},
     'items': items.map((e) => e.toJson()).toList(),
     if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
   };
 
-  LabOrder copyWith({List<LabOrderItem>? items}) => LabOrder(
+  LabOrder copyWith({
+    List<LabOrderItem>? items,
+    String? reportDoctorName,
+    bool clearReportDoctorName = false,
+  }) => LabOrder(
     id: id,
     status: status,
     patient: patient,
     doctor: doctor,
+    reportDoctorName: clearReportDoctorName
+        ? null
+        : (reportDoctorName ?? this.reportDoctorName),
     wardId: wardId,
     ward: ward,
     items: items ?? this.items,
     createdAt: createdAt,
   );
+
+  /// Unique doctor names for a combined print, in first-seen order.
+  static String combinedPrintDoctorName(Iterable<LabOrder> orders) {
+    final names = <String>[];
+    final seen = <String>{};
+    for (final order in orders) {
+      final name = order.printDoctorName.trim();
+      if (name.isEmpty) continue;
+      if (seen.add(name.toLowerCase())) names.add(name);
+    }
+    return names.join(', ');
+  }
 }
 
 class LabOrderPatient {

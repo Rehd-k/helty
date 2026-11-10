@@ -150,6 +150,9 @@ class BillingInvoiceDetail {
     this.patientHmoDefaultCoveragePercent,
     this.invoiceDisplayId,
     this.patientDisplayId,
+    this.admissionId,
+    this.admissionDate,
+    this.dischargeDate,
   });
 
   final String id;
@@ -160,6 +163,11 @@ class BillingInvoiceDetail {
 
   /// Hospital / MRN-style id from nested `patient.patientId`, when present.
   final String? patientDisplayId;
+
+  /// Admission linked through the invoice encounter, when the API includes it.
+  final String? admissionId;
+  final DateTime? admissionDate;
+  final DateTime? dischargeDate;
   final String status;
   final double totalAmount;
   final double amountPaid;
@@ -213,12 +221,16 @@ class BillingInvoiceDetail {
     final patientDisplayRaw = patientMap != null
         ? _nullableString(patientMap['patientId'])
         : null;
+    final stay = _admissionStayFromInvoice(payload);
 
     return BillingInvoiceDetail(
       id: _asString(payload['id']),
       patientId: _asString(payload['patientId']),
       invoiceDisplayId: invoiceDisplayRaw,
       patientDisplayId: patientDisplayRaw,
+      admissionId: stay?.id,
+      admissionDate: stay?.admissionDate,
+      dischargeDate: stay?.dischargeDate,
       status: _asString(payload['status'], fallback: 'PENDING'),
       totalAmount: _asDouble(payload['totalAmount']),
       amountPaid: _asDouble(payload['amountPaid']),
@@ -1403,6 +1415,39 @@ bool _asBool(dynamic value, {bool fallback = false}) {
     if (lower == 'false' || lower == '0') return false;
   }
   return fallback;
+}
+
+class _InvoiceAdmissionStay {
+  const _InvoiceAdmissionStay({
+    this.id,
+    this.admissionDate,
+    this.dischargeDate,
+  });
+
+  final String? id;
+  final DateTime? admissionDate;
+  final DateTime? dischargeDate;
+}
+
+_InvoiceAdmissionStay? _admissionStayFromInvoice(Map<String, dynamic> payload) {
+  final encounterRaw = payload['encounter'];
+  if (encounterRaw is! Map) return null;
+  final encounter = Map<String, dynamic>.from(encounterRaw);
+  final admissionRaw = encounter['admission'];
+  final admission = admissionRaw is Map
+      ? Map<String, dynamic>.from(admissionRaw)
+      : null;
+  final id = _nullableString(admission?['id'] ?? encounter['admissionId']);
+  if (id == null && admission == null) return null;
+  return _InvoiceAdmissionStay(
+    id: id,
+    admissionDate: _asDate(
+      admission?['admissionDateTime'] ?? admission?['admissionDate'],
+    ),
+    dischargeDate: _asDate(
+      admission?['dischargeDateTime'] ?? admission?['dischargeDate'],
+    ),
+  );
 }
 
 DateTime? _asDate(dynamic value) {

@@ -11,6 +11,7 @@ import 'package:helty/src/lab/utils/lab_ast_display.dart';
 import 'package:helty/src/lab/widgets/lab_ast_results_table.dart';
 import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
+import 'package:helty/src/widgets/report_doctor_name_field.dart';
 import 'package:helty/src/printing/pdf/report_template_picker.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -34,8 +35,14 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
   /// Holds PATCH response so status changes do not trigger a redundant GET.
   LabOrder? _optimisticOrder;
 
+  /// Latest typed doctor name, so print uses it before the save returns.
+  String? _doctorDraft;
+
   Future<void> _refreshOrder() async {
-    setState(() => _optimisticOrder = null);
+    setState(() {
+      _optimisticOrder = null;
+      _doctorDraft = null;
+    });
     invalidateLabOrderCaches(ref, orderId: widget.orderId);
     await ref.read(labOrderByIdProvider(widget.orderId).future);
   }
@@ -148,7 +155,14 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _OrderInfoCard(order: order),
+              _OrderInfoCard(
+                order: order,
+                doctorField: ReportDoctorNameField(
+                  value: order.printDoctorName,
+                  onChanged: (value) => _doctorDraft = value,
+                  onSave: (value) => _saveReportDoctor(order, value),
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
                 'Items',
@@ -189,6 +203,27 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
       ),
       ),
     );
+  }
+
+  Future<void> _saveReportDoctor(LabOrder order, String value) async {
+    final trimmed = value.trim();
+    try {
+      await ref
+          .read(labApiServiceProvider)
+          .updateOrderReportDoctor(order.id, trimmed);
+      if (!mounted) return;
+      setState(() {
+        _optimisticOrder = trimmed.isEmpty
+            ? order.copyWith(clearReportDoctorName: true)
+            : order.copyWith(reportDoctorName: trimmed);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save doctor name: $e')),
+      );
+      rethrow;
+    }
   }
 
   Future<void> _updateOrderStatus(
@@ -264,17 +299,26 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
     }
   }
 
+  LabOrder _orderForPrint(LabOrder order) {
+    final draft = _doctorDraft;
+    if (draft == null) return order;
+    final trimmed = draft.trim();
+    if (trimmed.isEmpty) return order.copyWith(clearReportDoctorName: true);
+    return order.copyWith(reportDoctorName: trimmed);
+  }
+
   Future<void> _printOrder(LabOrder order) async {
+    final printing = _orderForPrint(order);
     await Printing.layoutPdf(
       onLayout: (format) async {
-        final bytes = await buildLabOrderPdf(order, format);
+        final bytes = await buildLabOrderPdf(printing, format);
         return Uint8List.fromList(bytes);
       },
     );
   }
 
   Future<void> _shareOrder(LabOrder order) async {
-    final bytes = await buildLabOrderPdf(order, PdfPageFormat.a4);
+    final bytes = await buildLabOrderPdf(_orderForPrint(order), PdfPageFormat.a4);
     await Printing.sharePdf(
       bytes: Uint8List.fromList(bytes),
       filename: 'lab_order_${order.id}.pdf',
@@ -298,9 +342,10 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
 }
 
 class _OrderInfoCard extends StatelessWidget {
-  const _OrderInfoCard({required this.order});
+  const _OrderInfoCard({required this.order, required this.doctorField});
 
   final LabOrder order;
+  final Widget doctorField;
 
   @override
   Widget build(BuildContext context) {
@@ -344,7 +389,7 @@ class _OrderInfoCard extends StatelessWidget {
               label: 'Patient',
               value: order.patient?.displayName ?? '?',
             ),
-            _InfoRow(label: 'Doctor', value: order.doctor?.displayName ?? '?'),
+            doctorField,
             if (order.createdAt != null)
               _InfoRow(
                 label: 'Created',

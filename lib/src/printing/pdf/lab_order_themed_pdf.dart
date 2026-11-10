@@ -703,13 +703,8 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
                     '#${_labOrderShortId(order.id)}',
                     emphasize: true,
                   ),
-                  if (order.doctor?.isPhysician == true)
-                    palette.kv(
-                      'Physician',
-                      order.doctor!.capitalizedDisplayName.isNotEmpty
-                          ? order.doctor!.capitalizedDisplayName
-                          : order.doctor!.displayName,
-                    ),
+                  if (order.printDoctorName.isNotEmpty)
+                    palette.kv('Doctor', order.printDoctorName),
                   palette.kv(
                     'Items',
                     '${order.items.length} test${order.items.length == 1 ? '' : 's'}',
@@ -767,6 +762,10 @@ Future<List<int>> buildLabPatientItemsPdf({
       )
       .toList();
 
+  final doctorName = LabOrder.combinedPrintDoctorName(
+    printable.map((entry) => entry.order),
+  );
+
   final doc = pw.Document();
   doc.addPage(
     pw.MultiPage(
@@ -802,6 +801,7 @@ Future<List<int>> buildLabPatientItemsPdf({
                 title: 'ORDERS',
                 rows: [
                   palette.kv('Order no.', orderSummary, emphasize: true),
+                  if (doctorName.isNotEmpty) palette.kv('Doctor', doctorName),
                   palette.kv(
                     'Tests',
                     '${printable.length} test${printable.length == 1 ? '' : 's'}',

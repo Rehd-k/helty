@@ -65,6 +65,10 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
   bool get _isRegisterUse => widget.use.trim().toLowerCase() == 'for register';
   bool get _isNursingQueueUse =>
       widget.use.trim().toLowerCase() == 'nursingqueue';
+  bool get _isLabOrRadiologyQueue {
+    final use = widget.use.trim().toLowerCase();
+    return use == 'laboratory' || use == 'radiology';
+  }
 
   String get _endpoint => _isRegisterUse
       ? '/invoices/unregistered-patients'
@@ -135,6 +139,25 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
     final wait = LabClinicalUi.waitSince(patient.dateTime);
     if (wait == null) return LabClinicalUi.iconAmber;
     return LabClinicalUi.waitColor(wait);
+  }
+
+  String _ageLabel(_UnregisteredPatientTxn patient) {
+    final dob = patient.dob;
+    if (dob != null) return DateFormatter.patientAgeFromDob(dob);
+    final years = patient.age;
+    if (years == null) return '—';
+    if (years <= 0) return '0 d';
+    return years == 1 ? '1 yr' : '$years yrs';
+  }
+
+  Widget _urgencyChip(_UnregisteredPatientTxn patient) {
+    final label = patient.urgencyLabel;
+    final color = switch (label) {
+      'STAT' => const Color(0xFFDC2626),
+      'Urgent' => LabClinicalUi.iconAmber,
+      _ => LabClinicalUi.iconBlue,
+    };
+    return HeltyEllipsisChip(label: label, color: color);
   }
 
   String get _avgWaitLabel {
@@ -400,18 +423,21 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                 icon: Icons.schedule_outlined,
                 accent: LabClinicalUi.iconAmber,
               ),
-              LabKpiItem(
-                label: 'Avg. wait',
-                value: _avgWaitLabel,
-                caption: 'From billed time',
-                icon: Icons.timer_outlined,
-                accent: LabClinicalUi.iconPink,
-              ),
+              if (!_isLabOrRadiologyQueue)
+                LabKpiItem(
+                  label: 'Avg. wait',
+                  value: _avgWaitLabel,
+                  caption: 'From billed time',
+                  icon: Icons.timer_outlined,
+                  accent: LabClinicalUi.iconPink,
+                ),
             ],
           );
           final filters = LabFilterBar(
             searchController: _searchController,
-            searchHint: 'Name, bill #, or invoice id…',
+            searchHint: _isLabOrRadiologyQueue
+                ? 'Name or patient id…'
+                : 'Name, bill #, or invoice id…',
             compact: compact,
             onSearchSubmitted: (_) => _fetchPatients(reset: true),
             primaryFilter: _statusDropdown(context),
@@ -580,11 +606,16 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                 const SizedBox(width: colGap),
                 head('PATIENT', flex: 5),
                 const SizedBox(width: colGap),
-                head('BILL', flex: 2),
-                const SizedBox(width: colGap),
+                if (_isLabOrRadiologyQueue) ...[
+                  head('AGE', flex: 2),
+                  const SizedBox(width: colGap),
+                ] else ...[
+                  head('BILL', flex: 2),
+                  const SizedBox(width: colGap),
+                ],
                 head('SERVICES', flex: 3),
                 const SizedBox(width: colGap),
-                head('WAIT', flex: 2),
+                head(_isLabOrRadiologyQueue ? 'URGENCY' : 'WAIT', flex: 2),
                 const SizedBox(width: colGap),
                 head('STATUS', flex: 2),
                 const SizedBox(width: colGap),
@@ -823,10 +854,17 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
               const SizedBox(width: 20),
               Expanded(
                 flex: 2,
-                child: HeltyEllipsisText(
-                  text: patient.billLabel,
-                  style: theme.textTheme.bodyMedium,
-                ),
+                child: _isLabOrRadiologyQueue
+                    ? HeltyEllipsisText(
+                        text: _ageLabel(patient),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      )
+                    : HeltyEllipsisText(
+                        text: patient.billLabel,
+                        style: theme.textTheme.bodyMedium,
+                      ),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -841,13 +879,15 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
               const SizedBox(width: 20),
               Expanded(
                 flex: 2,
-                child: HeltyEllipsisText(
-                  text: _waitLabel(patient),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: _waitColor(patient),
-                  ),
-                ),
+                child: _isLabOrRadiologyQueue
+                    ? _urgencyChip(patient)
+                    : HeltyEllipsisText(
+                        text: _waitLabel(patient),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: _waitColor(patient),
+                        ),
+                      ),
               ),
               const SizedBox(width: 20),
               Expanded(flex: 2, child: _statusChip(patient)),
@@ -886,13 +926,16 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(child: _identity(patient)),
-                  HeltyEllipsisText(
-                    text: _waitLabel(patient),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: _waitColor(patient),
+                  if (_isLabOrRadiologyQueue)
+                    _urgencyChip(patient)
+                  else
+                    HeltyEllipsisText(
+                      text: _waitLabel(patient),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: _waitColor(patient),
+                      ),
                     ),
-                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -908,10 +951,17 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  HeltyStatusChip(
-                    label: patient.billLabel,
-                    color: LabClinicalUi.iconIndigo,
-                  ),
+                  if (_isLabOrRadiologyQueue) ...[
+                    HeltyStatusChip(
+                      label: _ageLabel(patient),
+                      color: LabClinicalUi.iconTeal,
+                    ),
+                    _urgencyChip(patient),
+                  ] else
+                    HeltyStatusChip(
+                      label: patient.billLabel,
+                      color: LabClinicalUi.iconIndigo,
+                    ),
                   HeltyStatusChip(
                     label: patient.canOpenModulePatient
                         ? (patient.isPaid ? 'Paid' : 'Ready')
@@ -1028,7 +1078,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                           ),
                           HeltyEllipsisText(
                             text: [
-                              if (patient.age != null) '${patient.age} yrs',
+                              if (_ageLabel(patient) != '—') _ageLabel(patient),
                               if (patient.gender?.trim().isNotEmpty == true)
                                 patient.gender!.trim(),
                             ].join(' · '),
@@ -1042,10 +1092,23 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                HeltyStatusChip(
-                  label: patient.billLabel,
-                  color: LabClinicalUi.iconIndigo,
-                ),
+                if (_isLabOrRadiologyQueue)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      HeltyStatusChip(
+                        label: _ageLabel(patient),
+                        color: LabClinicalUi.iconTeal,
+                      ),
+                      _urgencyChip(patient),
+                    ],
+                  )
+                else
+                  HeltyStatusChip(
+                    label: patient.billLabel,
+                    color: LabClinicalUi.iconIndigo,
+                  ),
                 const SizedBox(height: 8),
                 HeltyEllipsisText(
                   text: DateFormatter.dateTime(patient.dateTime),
@@ -1440,6 +1503,8 @@ class _UnregisteredPatientTxn {
     required this.dateTime,
     this.phoneNumber,
     this.age,
+    this.dob,
+    this.urgency,
     this.gender,
     this.ward,
     this.patientId,
@@ -1490,6 +1555,10 @@ class _UnregisteredPatientTxn {
   final String firstName;
   final String? phoneNumber;
   final int? age;
+  final DateTime? dob;
+
+  /// Doctor-entered urgency: Routine, Urgent, or STAT.
+  final String? urgency;
   final String? gender;
   final String? ward;
   final List<String> services;
@@ -1507,6 +1576,13 @@ class _UnregisteredPatientTxn {
     final d = invoiceDisplayId?.trim();
     if (d != null && d.isNotEmpty) return d;
     return '${fullName}_${dateTime.millisecondsSinceEpoch}';
+  }
+
+  String get urgencyLabel {
+    final value = urgency?.trim().toUpperCase() ?? '';
+    if (value == 'STAT' || value == 'EMERGENCY') return 'STAT';
+    if (value == 'URGENT') return 'Urgent';
+    return 'Routine';
   }
 
   String get billLabel {
@@ -1547,6 +1623,8 @@ class _UnregisteredPatientTxn {
       firstName: patient?.firstName ?? '',
       phoneNumber: patient?.phoneNumber,
       age: null,
+      dob: patient?.dob,
+      urgency: null,
       gender: patient?.gender,
       ward: patient?.ward,
       services: row.consultationNames,
@@ -1844,9 +1922,35 @@ class _UnregisteredPatientTxn {
                   root['phone'] ??
                   json['phone'])
               ?.toString(),
-      age: (patient?['age'] ?? json['age']) is num
-          ? ((patient?['age'] ?? json['age']) as num).toInt()
-          : int.tryParse((patient?['age'] ?? json['age'])?.toString() ?? ''),
+      age: (patient?['age'] ?? json['age'] ?? root['age']) is num
+          ? ((patient?['age'] ?? json['age'] ?? root['age']) as num).toInt()
+          : int.tryParse(
+              (patient?['age'] ?? json['age'] ?? root['age'])?.toString() ?? '',
+            ),
+      dob: DateTime.tryParse(
+        (patient?['dob'] ?? json['dob'] ?? root['dob'])?.toString() ?? '',
+      ),
+      urgency: () {
+        final direct = (json['urgency'] ?? root['urgency'])?.toString().trim();
+        if (direct != null && direct.isNotEmpty) return direct;
+        var best = '';
+        var bestRank = 0;
+        for (final item in rawServices) {
+          if (item is! Map) continue;
+          final raw = item['priority']?.toString().trim() ?? '';
+          final rank = switch (raw.toUpperCase()) {
+            'STAT' || 'EMERGENCY' => 3,
+            'URGENT' => 2,
+            'ROUTINE' => 1,
+            _ => 0,
+          };
+          if (rank > bestRank) {
+            bestRank = rank;
+            best = raw;
+          }
+        }
+        return best.isEmpty ? null : best;
+      }(),
       gender: () {
         for (final v in [json['gender'], patient?['gender'], root['gender']]) {
           final s = v?.toString().trim();

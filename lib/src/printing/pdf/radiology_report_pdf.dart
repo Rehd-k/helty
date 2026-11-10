@@ -104,6 +104,8 @@ Future<List<int>> buildRadiologyOrderReportPdf(
                   'Items',
                   '${order.items.length} study${order.items.length == 1 ? '' : 'ies'}',
                 ),
+                if (order.printDoctorName.isNotEmpty)
+                  theme.kv('Doctor', order.printDoctorName),
               ],
             ),
           ],

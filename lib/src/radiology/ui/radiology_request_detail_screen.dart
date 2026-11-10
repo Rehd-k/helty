@@ -19,6 +19,7 @@ import 'package:helty/src/printing/pdf/report_template_picker.dart';
 import 'package:helty/src/radiology/ui/radiology_ui_helpers.dart';
 import 'package:helty/src/radiology/ui/widgets/radiology_image_viewer.dart';
 import 'package:printing/printing.dart';
+import 'package:helty/src/widgets/report_doctor_name_field.dart';
 
 @RoutePage()
 class RadiologyRequestDetailScreen extends ConsumerStatefulWidget {
@@ -33,6 +34,9 @@ class RadiologyRequestDetailScreen extends ConsumerStatefulWidget {
 class _RadiologyRequestDetailScreenState
     extends ConsumerState<RadiologyRequestDetailScreen> {
   RadiologyOrder? _order;
+
+  /// Latest typed doctor name, so print uses it before the save returns.
+  String? _doctorDraft;
   Map<String, List<RadiologyImage>> _itemImages = {};
   bool _loading = true;
   bool _statusUpdating = false;
@@ -58,6 +62,7 @@ class _RadiologyRequestDetailScreenState
       if (!mounted) return;
       setState(() {
         _order = order;
+        _doctorDraft = null;
         _itemImages = itemImages;
         _selectedItemId = order.items.isNotEmpty ? order.items.first.id : null;
         _loading = false;
@@ -319,8 +324,33 @@ class _RadiologyRequestDetailScreenState
       ..document.insert(0, reportPreviewText(report));
   }
 
-  Future<void> _printOrderReport() async {
+  Future<void> _saveReportDoctor(RadiologyOrder order, String value) async {
+    final trimmed = value.trim();
+    try {
+      await ref
+          .read(radiologyServiceProvider)
+          .updateOrder(order.id, {'reportDoctorName': trimmed});
+      if (!mounted) return;
+      setState(() => _order = order.withReportDoctorName(trimmed));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save doctor name: $e')),
+      );
+      rethrow;
+    }
+  }
+
+  RadiologyOrder? get _orderForPrint {
     final order = _order;
+    if (order == null) return null;
+    final draft = _doctorDraft;
+    if (draft == null) return order;
+    return order.withReportDoctorName(draft);
+  }
+
+  Future<void> _printOrderReport() async {
+    final order = _orderForPrint;
     if (order == null) return;
     await Printing.layoutPdf(
       onLayout: (_) async =>
@@ -329,7 +359,7 @@ class _RadiologyRequestDetailScreenState
   }
 
   Future<void> _shareOrderReport() async {
-    final order = _order;
+    final order = _orderForPrint;
     if (order == null) return;
     final bytes = await buildRadiologyOrderReportPdf(order);
     await Printing.sharePdf(
@@ -345,7 +375,7 @@ class _RadiologyRequestDetailScreenState
   }
 
   Future<void> _printClinicalNotes() async {
-    final order = _order;
+    final order = _orderForPrint;
     if (order == null) return;
     await Printing.layoutPdf(
       onLayout: (_) async =>
@@ -354,7 +384,7 @@ class _RadiologyRequestDetailScreenState
   }
 
   Future<void> _shareClinicalNotes() async {
-    final order = _order;
+    final order = _orderForPrint;
     if (order == null) return;
     final bytes = await buildRadiologyClinicalNotesPdf(order);
     await Printing.sharePdf(
@@ -433,7 +463,11 @@ class _RadiologyRequestDetailScreenState
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             children: [
-              _OrderHeader(order: order),
+              _OrderHeader(
+                order: order,
+                onDoctorChanged: (value) => _doctorDraft = value,
+                onSaveDoctor: (value) => _saveReportDoctor(order, value),
+              ),
               const SizedBox(height: 12),
               ...order.items.map(
                 (item) => Card(
@@ -596,12 +630,17 @@ class _RadiologyRequestDetailScreenState
 }
 
 class _OrderHeader extends StatelessWidget {
-  const _OrderHeader({required this.order});
+  const _OrderHeader({
+    required this.order,
+    required this.onDoctorChanged,
+    required this.onSaveDoctor,
+  });
   final RadiologyOrder order;
+  final ValueChanged<String> onDoctorChanged;
+  final Future<void> Function(String value) onSaveDoctor;
 
   @override
   Widget build(BuildContext context) {
-    final requestedByName = (order.requestedBy?.displayName ?? '').trim();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -628,8 +667,11 @@ class _OrderHeader extends StatelessWidget {
                 ),
               ],
             ),
-            if (requestedByName.isNotEmpty)
-              _ValueRow('Requested by', requestedByName),
+            ReportDoctorNameField(
+              value: order.printDoctorName,
+              onChanged: onDoctorChanged,
+              onSave: onSaveDoctor,
+            ),
             _ValueRow('Status', orderStatusLabel(order.status)),
             _ValueRow('Items', '${order.items.length}'),
             _ValueRow(
